@@ -1,9 +1,10 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import { ClientCard } from '@/components/freelance/ClientCard';
 import { ClientForm } from '@/components/freelance/ClientForm';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
+import { getLastPush, formatPush } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,12 @@ export default async function FreelancePage() {
 
   const clients = clientRows.map(rowToFreelanceClient);
   const tasks = taskRows.map(rowToFreelanceTask);
+
+  const pushMap = Object.fromEntries(
+    await Promise.all(
+      clients.map(async (c) => [c.id, formatPush(await getLastPush(c.links.repo))])
+    )
+  );
 
   const active = clients.filter((c) => c.status !== 'archived');
   const archived = clients.filter((c) => c.status === 'archived');
@@ -47,6 +54,7 @@ export default async function FreelancePage() {
               key={c.id}
               client={c}
               tasks={tasks.filter((t) => t.client_id === c.id)}
+              lastPush={pushMap[c.id]}
             />
           ))}
         </div>
@@ -63,6 +71,7 @@ export default async function FreelancePage() {
                 key={c.id}
                 client={c}
                 tasks={tasks.filter((t) => t.client_id === c.id)}
+                lastPush={pushMap[c.id]}
               />
             ))}
           </div>

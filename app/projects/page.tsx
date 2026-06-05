@@ -4,6 +4,7 @@ import { ProjectForm } from '@/components/projects/ProjectForm';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
 import { rowToOwnProject } from '@/lib/today';
+import { getLastPush, formatPush } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,13 @@ export default async function ProjectsPage() {
     .orderBy(asc(schema.ownProjects.created_at));
 
   const projects = rows.map(rowToOwnProject);
+
+  const pushMap = Object.fromEntries(
+    await Promise.all(
+      projects.map(async (p) => [p.id, formatPush(await getLastPush(p.links.repo))])
+    )
+  );
+
   const active = projects.filter((p) => p.status !== 'archived');
   const archived = projects.filter((p) => p.status === 'archived');
 
@@ -41,7 +49,7 @@ export default async function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {active.map((p) => (
-            <ProjectCard key={p.id} project={p} />
+            <ProjectCard key={p.id} project={p} lastPush={pushMap[p.id]} />
           ))}
         </div>
       )}
@@ -53,7 +61,7 @@ export default async function ProjectsPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {archived.map((p) => (
-              <ProjectCard key={p.id} project={p} />
+              <ProjectCard key={p.id} project={p} lastPush={pushMap[p.id]} />
             ))}
           </div>
         </div>

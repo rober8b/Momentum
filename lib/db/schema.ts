@@ -130,6 +130,7 @@ export const freelanceClients = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    icon: text('icon'),
     description: text('description'),
     status: text('status').$type<FreelanceClientStatus>().default('active').notNull(),
     stack: text('stack'),
@@ -170,6 +171,7 @@ export const ownProjects = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    icon: text('icon'),
     description: text('description'),
     status: text('status').$type<ProjectStatus>().default('active').notNull(),
     last_update: text('last_update'),

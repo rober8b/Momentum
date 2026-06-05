@@ -16,9 +16,11 @@ const STATUS_BADGE: Record<FreelanceClient['status'], { variant: 'accent' | 'war
 export function ClientCard({
   client,
   tasks,
+  lastPush,
 }: {
   client: FreelanceClient;
   tasks: FreelanceTask[];
+  lastPush?: string | null;
 }) {
   const badge = STATUS_BADGE[client.status];
   const activeTasks = tasks.filter((t) => t.status !== 'done');
@@ -38,7 +40,10 @@ export function ClientCard({
               <span className="text-[10px] text-muted-foreground font-mono">{client.stack}</span>
             )}
           </div>
-          <h3 className="text-sm font-semibold leading-tight">{client.name}</h3>
+          <h3 className="text-sm font-semibold leading-tight">
+            {client.icon && <span className="mr-1.5">{client.icon}</span>}
+            {client.name}
+          </h3>
         </div>
         <Link
           href={`/freelance/${client.id}`}
@@ -55,11 +60,14 @@ export function ClientCard({
         </p>
       )}
 
-      {activeTasks.length > 0 && (
-        <div className="text-xs text-muted-foreground">
-          {activeTasks.length} tarea{activeTasks.length !== 1 ? 's' : ''} activa{activeTasks.length !== 1 ? 's' : ''}
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        {activeTasks.length > 0 ? (
+          <span>{activeTasks.length} tarea{activeTasks.length !== 1 ? 's' : ''} activa{activeTasks.length !== 1 ? 's' : ''}</span>
+        ) : <span />}
+        {lastPush && (
+          <span className="font-mono" title="último push">↑ {lastPush}</span>
+        )}
+      </div>
     </div>
   );
 }

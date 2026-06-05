@@ -167,6 +167,7 @@ function rowToFreelanceClient(r: typeof schema.freelanceClients.$inferSelect): F
   return {
     id: r.id,
     name: r.name,
+    icon: r.icon,
     description: r.description,
     status: r.status,
     stack: r.stack,
@@ -196,6 +197,7 @@ function rowToOwnProject(r: typeof schema.ownProjects.$inferSelect): OwnProject 
   return {
     id: r.id,
     name: r.name,
+    icon: r.icon,
     description: r.description,
     status: r.status,
     last_update: r.last_update,

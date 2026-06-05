@@ -93,6 +93,7 @@ export type FreelanceClientStatus = 'active' | 'paused' | 'blocked' | 'archived'
 export type FreelanceClient = {
   id: string;
   name: string;
+  icon: string | null;
   description: string | null;
   status: FreelanceClientStatus;
   stack: string | null;
@@ -124,6 +125,7 @@ export type ProjectStatus = 'active' | 'paused' | 'blocked' | 'archived';
 export type OwnProject = {
   id: string;
   name: string;
+  icon: string | null;
   description: string | null;
   status: ProjectStatus;
   last_update: string | null;

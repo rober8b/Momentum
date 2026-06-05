@@ -22,7 +22,7 @@ const NEXT_STATUS: Record<ProjectStatus, ProjectStatus> = {
   archived: 'active',
 };
 
-export function ProjectCard({ project }: { project: OwnProject }) {
+export function ProjectCard({ project, lastPush }: { project: OwnProject; lastPush?: string | null }) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(project.status);
   const [editingNextStep, setEditingNextStep] = useState(false);
@@ -68,7 +68,10 @@ export function ProjectCard({ project }: { project: OwnProject }) {
           >
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </button>
-          <h3 className="text-sm font-semibold leading-tight">{project.name}</h3>
+          <h3 className="text-sm font-semibold leading-tight">
+            {project.icon && <span className="mr-1.5">{project.icon}</span>}
+            {project.name}
+          </h3>
           {project.description && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{project.description}</p>
           )}
@@ -88,6 +91,10 @@ export function ProjectCard({ project }: { project: OwnProject }) {
         <p className="text-xs text-muted-foreground border-l-2 border-border pl-2">
           {project.last_update}
         </p>
+      )}
+
+      {lastPush && (
+        <p className="text-[11px] text-muted-foreground font-mono">↑ {lastPush}</p>
       )}
 
       <div>
