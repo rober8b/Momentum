@@ -1,15 +1,15 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { eq, asc } from 'drizzle-orm';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { TaskForm } from '@/components/freelance/TaskForm';
+import { FreelanceTaskCard } from '@/components/freelance/FreelanceTaskCard';
+import { ClientEditForm } from '@/components/freelance/ClientEditForm';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
-import { deleteClient, updateFreelanceTaskStatus } from '@/app/freelance/actions';
 import type { FreelanceTaskStatus } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -47,11 +47,6 @@ export default async function FreelanceClientPage({
   const client = rowToFreelanceClient(clientRows[0]);
   const tasks = taskRows.map(rowToFreelanceTask);
 
-  async function handleDelete() {
-    'use server';
-    await deleteClient(clientId);
-  }
-
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1400px]">
       <Link
@@ -74,11 +69,7 @@ export default async function FreelanceClientPage({
             <p className="text-sm text-muted-foreground mt-1">{client.description}</p>
           )}
         </div>
-        <form action={handleDelete}>
-          <Button type="submit" variant="ghost" size="sm" aria-label="Eliminar cliente">
-            <Trash2 size={14} />
-          </Button>
-        </form>
+        <ClientEditForm client={client} />
       </div>
 
       {(client.next_step || client.last_update) && (
@@ -118,62 +109,6 @@ export default async function FreelanceClientPage({
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function FreelanceTaskCard({ task }: { task: ReturnType<typeof rowToFreelanceTask> }) {
-  const FLOW: FreelanceTaskStatus[] = ['backlog', 'today', 'in-progress', 'blocked', 'done'];
-  const currentIdx = FLOW.indexOf(task.status);
-  const next = currentIdx < FLOW.length - 1 ? FLOW[currentIdx + 1] : null;
-  const prev = currentIdx > 0 ? FLOW[currentIdx - 1] : null;
-
-  async function moveForward() {
-    'use server';
-    if (next) await updateFreelanceTaskStatus(task.id, next);
-  }
-
-  async function moveBack() {
-    'use server';
-    if (prev) await updateFreelanceTaskStatus(task.id, prev);
-  }
-
-  return (
-    <div className="group rounded-md border border-border bg-surface-elev p-2.5">
-      <p className="text-sm font-medium leading-tight">{task.title}</p>
-      <div className="mt-2 flex items-center justify-between gap-1">
-        <Badge
-          variant={
-            task.priority === 'high' ? 'danger' : task.priority === 'med' ? 'warning' : 'muted'
-          }
-        >
-          {task.priority}
-        </Badge>
-        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {prev && (
-            <form action={moveBack}>
-              <button
-                type="submit"
-                className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={`← ${prev}`}
-              >
-                ←
-              </button>
-            </form>
-          )}
-          {next && (
-            <form action={moveForward}>
-              <button
-                type="submit"
-                className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={`${next} →`}
-              >
-                →
-              </button>
-            </form>
-          )}
-        </div>
       </div>
     </div>
   );

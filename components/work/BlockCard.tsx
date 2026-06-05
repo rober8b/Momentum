@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Flame, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
@@ -19,13 +19,15 @@ const PRIORITY = {
 
 export function BlockCard({ workblock }: { workblock: Workblock }) {
   const [isPending, startTransition] = useTransition();
+  const [status, setStatus] = useState(workblock.status);
   const p = PRIORITY[workblock.priority];
   const Icon = p.icon;
-  const currentIdx = FLOW.indexOf(workblock.status);
+  const currentIdx = FLOW.indexOf(status);
   const prev = currentIdx > 0 ? FLOW[currentIdx - 1] : null;
   const next = currentIdx < FLOW.length - 1 ? FLOW[currentIdx + 1] : null;
 
   function move(target: WorkblockStatus) {
+    setStatus(target);
     startTransition(async () => {
       await updateWorkblockStatus(workblock.id, target);
     });
@@ -35,7 +37,8 @@ export function BlockCard({ workblock }: { workblock: Workblock }) {
     <div
       className={cn(
         'group rounded-md border border-border bg-surface-elev p-3 transition-shadow hover:shadow-md',
-        workblock.status === 'done' && 'opacity-60',
+        status === 'done' && 'opacity-60',
+        isPending && 'opacity-50',
       )}
     >
       <div className="flex items-start justify-between gap-2">

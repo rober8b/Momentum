@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { CheckCircle2, Circle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { formatDate, urgencyOf } from '@/lib/date';
-import { toggleCommunityDone, deleteCommunityItem } from '@/app/community/actions';
+import { toggleCommunityDone, deleteCommunityItem, cancelCommunityItem } from '@/app/community/actions';
 import { cn } from '@/lib/cn';
 import type { CommunityItem } from '@/lib/types';
 
@@ -73,15 +73,32 @@ export function CommitmentRow({ item }: { item: CommunityItem }) {
           )}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={remove}
-        disabled={isPending}
-        className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-danger transition-all"
-        aria-label="Eliminar"
-      >
-        <Trash2 size={12} />
-      </button>
+      <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={() => {
+            startTransition(async () => {
+              await cancelCommunityItem(item.id);
+            });
+          }}
+          disabled={isPending || done}
+          className="rounded p-1 text-muted-foreground hover:text-warning"
+          aria-label="Cancelar"
+          title="cancelar"
+        >
+          <Ban size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={isPending}
+          className="rounded p-1 text-muted-foreground hover:text-danger"
+          aria-label="Eliminar"
+          title="eliminar"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   );
 }

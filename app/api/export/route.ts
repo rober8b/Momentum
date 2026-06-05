@@ -23,9 +23,12 @@ export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
   const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
-  // El proxy.ts excluye /api/export del Clerk guard, así que sin esto
-  // cualquiera puede pegarle. Si querés bloquear hasta tener sesión, validar acá.
-  void isCron;
+  if (cronSecret && !isCron) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!cronSecret && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
 
   const range = lastWeekRange();
 

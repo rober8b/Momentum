@@ -4,7 +4,7 @@ import { eq, asc } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { AssignmentRow } from '@/components/today/AssignmentRow';
+import { AssignmentEditRow } from '@/components/uni/AssignmentEditRow';
 import { ScheduleEditor } from '@/components/uni/ScheduleEditor';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
@@ -96,7 +96,7 @@ export default async function SubjectPage({ params }: { params: Promise<{ subjec
           ) : (
             <div className="space-y-2">
               {active.map((a) => (
-                <AssignmentRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
+                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
               ))}
             </div>
           )}
@@ -111,7 +111,7 @@ export default async function SubjectPage({ params }: { params: Promise<{ subjec
           <CardContent>
             <div className="space-y-2">
               {done.map((a) => (
-                <AssignmentRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
+                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
               ))}
             </div>
           </CardContent>

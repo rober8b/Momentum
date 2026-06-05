@@ -2,17 +2,35 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ExternalLink, Edit3 } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Edit3, Trash2, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { markPublished } from '@/app/build/actions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/lib/hooks/useToast';
+import { markPublished, deleteBuildItem, updateBuildStatus } from '@/app/build/actions';
 import type { BuildItem } from '@/lib/types';
 
 export function DraftCard({ item }: { item: BuildItem }) {
+  const toast = useToast();
   const [showPublish, setShowPublish] = useState(false);
   const [xUrl, setXUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  function handleDelete() {
+    startTransition(async () => {
+      await deleteBuildItem(item.id);
+      toast.success('item eliminado');
+    });
+  }
+
+  function handleDiscard() {
+    startTransition(async () => {
+      await updateBuildStatus(item.id, 'discarded');
+      toast.info('item descartado');
+    });
+  }
 
   function publish() {
     const links: Record<string, string> = {};
@@ -60,9 +78,28 @@ export function DraftCard({ item }: { item: BuildItem }) {
             onClick={() => setShowPublish(!showPublish)}
             className="inline-flex items-center gap-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-success"
             aria-label="Mark published"
-            title="Mark published"
+            title="publicar"
           >
             <CheckCircle2 size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={handleDiscard}
+            disabled={isPending}
+            className="inline-flex items-center gap-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-warning"
+            aria-label="Descartar"
+            title="descartar"
+          >
+            <Ban size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="inline-flex items-center gap-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-danger"
+            aria-label="Eliminar"
+            title="eliminar"
+          >
+            <Trash2 size={12} />
           </button>
         </div>
       </div>
@@ -96,16 +133,43 @@ export function DraftCard({ item }: { item: BuildItem }) {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="eliminar draft?"
+      />
     </div>
   );
 }
 
 export function PublishedRow({ item }: { item: BuildItem }) {
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  function handleDelete() {
+    startTransition(async () => {
+      await deleteBuildItem(item.id);
+      toast.success('item eliminado');
+    });
+  }
+
   return (
-    <div className="rounded-md border border-border bg-surface-elev p-3">
+    <div className="group rounded-md border border-border bg-surface-elev p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-tight flex-1 min-w-0">{item.title}</p>
-        <Badge variant="success">published</Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant="success">published</Badge>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-danger transition-opacity"
+            aria-label="Eliminar"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
       <div className="mt-2 flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
         <span className="font-mono">
@@ -124,6 +188,12 @@ export function PublishedRow({ item }: { item: BuildItem }) {
           </a>
         ))}
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="eliminar publicacion?"
+      />
     </div>
   );
 }

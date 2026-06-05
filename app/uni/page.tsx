@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { asc, desc } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { ScheduleGrid } from '@/components/uni/ScheduleGrid';
 import { AssignmentRow } from '@/components/today/AssignmentRow';
 import { AssignmentForm } from '@/components/uni/AssignmentForm';
+import { SubjectForm } from '@/components/uni/SubjectForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
@@ -17,7 +18,7 @@ export default async function UniPage() {
     db
       .select()
       .from(schema.subjects)
-      .where(/* active */ schema.subjects.active.name ? undefined : undefined)
+      .where(eq(schema.subjects.active, true))
       .orderBy(asc(schema.subjects.name)),
     db
       .select()
@@ -43,9 +44,12 @@ export default async function UniPage() {
           uni · ucema 2026-1
         </p>
         <h2 className="text-2xl lg:text-3xl font-semibold mt-1">agenda</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {subjects.length} materias · {active.length} TPs activos
-        </p>
+        <div className="mt-2 flex items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            {subjects.length} materias · {active.length} TPs activos
+          </p>
+          <SubjectForm />
+        </div>
       </div>
 
       <Card className="mb-6">

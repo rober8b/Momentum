@@ -77,3 +77,24 @@ export async function deleteAssignment(id: string) {
   revalidatePath('/uni');
   revalidatePath('/');
 }
+
+const updateAssignmentSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  status: z.enum(['todo', 'in-progress', 'done']).optional(),
+});
+
+export async function updateAssignment(
+  id: string,
+  patch: z.infer<typeof updateAssignmentSchema>,
+) {
+  await requireRober();
+  const parsed = updateAssignmentSchema.parse(patch);
+  const data: Record<string, unknown> = { ...parsed };
+  if (parsed.status === 'done') data.completed_at = new Date();
+  if (parsed.status && parsed.status !== 'done') data.completed_at = null;
+  await db.update(schema.assignments).set(data).where(eq(schema.assignments.id, id));
+  revalidatePath('/uni');
+  revalidatePath('/');
+}

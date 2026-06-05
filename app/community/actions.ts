@@ -34,3 +34,12 @@ export async function deleteCommunityItem(id: string) {
   await db.delete(schema.communityItems).where(eq(schema.communityItems.id, id));
   revalidatePath('/community');
 }
+
+export async function cancelCommunityItem(id: string) {
+  await requireRober();
+  await db
+    .update(schema.communityItems)
+    .set({ status: 'cancelled' })
+    .where(eq(schema.communityItems.id, id));
+  revalidatePath('/community');
+}

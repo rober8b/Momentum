@@ -1,4 +1,4 @@
-import { asc, ne } from 'drizzle-orm';
+import { asc, ne, eq } from 'drizzle-orm';
 import { CommitmentRow } from '@/components/community/CommitmentRow';
 import { CommunityForm } from '@/components/community/CommunityForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -21,13 +21,21 @@ const ORGS: CommunityOrg[] = ['ai-consensus', 'levellers', 'xplora', 'other'];
 export default async function CommunityPage() {
   await requireRober();
 
-  const rows = await db
-    .select()
-    .from(schema.communityItems)
-    .where(ne(schema.communityItems.status, 'cancelled'))
-    .orderBy(asc(schema.communityItems.due_date));
+  const [activeRows, cancelledRows] = await Promise.all([
+    db
+      .select()
+      .from(schema.communityItems)
+      .where(ne(schema.communityItems.status, 'cancelled'))
+      .orderBy(asc(schema.communityItems.due_date)),
+    db
+      .select()
+      .from(schema.communityItems)
+      .where(eq(schema.communityItems.status, 'cancelled'))
+      .orderBy(asc(schema.communityItems.created_at)),
+  ]);
 
-  const items = rows.map(rowToCommunityItem);
+  const items = activeRows.map(rowToCommunityItem);
+  const cancelled = cancelledRows.map(rowToCommunityItem);
   const pending = items.filter((i) => i.status === 'pending');
   const done = items.filter((i) => i.status === 'done');
 
@@ -72,7 +80,7 @@ export default async function CommunityPage() {
       )}
 
       {done.length > 0 && (
-        <Card>
+        <Card className="mb-4">
           <CardHeader>
             <CardTitle>completados ({done.length})</CardTitle>
           </CardHeader>
@@ -84,6 +92,22 @@ export default async function CommunityPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {cancelled.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+            cancelados ({cancelled.length})
+          </summary>
+          <div className="mt-3 space-y-2">
+            {cancelled.map((item) => (
+              <div key={item.id} className="rounded-md border border-border bg-surface-elev p-2.5 opacity-50">
+                <p className="text-sm line-through">{item.title}</p>
+                <span className="text-xs text-muted-foreground">{item.organization}</span>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );

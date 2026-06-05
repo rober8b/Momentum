@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { desc } from 'drizzle-orm';
-import { Plus, Lightbulb, FileText, Send } from 'lucide-react';
+import { Plus, Lightbulb, FileText, Send, Ban, ArchiveRestore } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { IdeaCard } from '@/components/build/IdeaCard';
 import { DraftCard, PublishedRow } from '@/components/build/DraftCard';
+import { DiscardedRow } from '@/components/build/DiscardedRow';
 import { db, schema } from '@/lib/db';
 import { requireRober } from '@/lib/auth';
 import { rowToBuildItem } from '@/lib/today';
@@ -22,7 +23,9 @@ export default async function BuildPage() {
   const items = rows.map(rowToBuildItem);
   const ideas = items.filter((i) => i.status === 'idea');
   const drafts = items.filter((i) => i.status === 'draft');
+  const scheduled = items.filter((i) => i.status === 'scheduled');
   const published = items.filter((i) => i.status === 'published');
+  const discarded = items.filter((i) => i.status === 'discarded');
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1400px]">
@@ -33,7 +36,7 @@ export default async function BuildPage() {
           </p>
           <h2 className="text-2xl lg:text-3xl font-semibold mt-1">tracker</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {ideas.length} ideas · {drafts.length} drafts · {published.length} publicados
+            {ideas.length} ideas · {drafts.length} drafts · {published.length} publicados{discarded.length > 0 ? ` · ${discarded.length} descartados` : ''}
           </p>
         </div>
         <Link href="/build/new">
@@ -100,6 +103,19 @@ export default async function BuildPage() {
           </CardContent>
         </Card>
       </div>
+
+      {discarded.length > 0 && (
+        <details className="mt-6">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            <Ban size={12} /> descartados ({discarded.length})
+          </summary>
+          <div className="mt-3 space-y-2">
+            {discarded.map((i) => (
+              <DiscardedRow key={i.id} item={i} />
+            ))}
+          </div>
+        </details>
+      )}
 
       <div className="mt-6 text-center">
         <p className="text-xs text-muted-foreground italic">

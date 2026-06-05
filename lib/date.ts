@@ -1,19 +1,23 @@
 import type { DayOfWeek } from './types';
 
-const DAY_INDEX: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const TZ = 'America/Argentina/Buenos_Aires';
+const DAY_MAP: Record<string, DayOfWeek> = {
+  Sun: 'sun', Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri', Sat: 'sat',
+};
 
 export function todayKey(): DayOfWeek {
-  return DAY_INDEX[new Date().getDay()];
+  const short = new Date().toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' });
+  return DAY_MAP[short] ?? 'mon';
 }
 
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
 }
 
 export function inDaysISO(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d);
 }
 
 export function formatDate(iso: string | null): string {
@@ -24,6 +28,7 @@ export function formatDate(iso: string | null): string {
 
 export function formatFullDate(): string {
   return new Date().toLocaleDateString('es-AR', {
+    timeZone: TZ,
     weekday: 'long',
     day: 'numeric',
     month: 'long',

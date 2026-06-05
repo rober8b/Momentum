@@ -41,8 +41,9 @@ export function AssignmentRow({ assignment }: Props) {
         disabled={isPending}
         onClick={() =>
           startTransition(async () => {
-            setDone(true);
-            await toggleAssignmentDone(assignment.id, true);
+            const next = !done;
+            setDone(next);
+            await toggleAssignmentDone(assignment.id, next);
           })
         }
         className="shrink-0 mt-0.5 text-muted-foreground hover:text-accent transition-colors"
