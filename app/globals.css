@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elev: var(--surface-elev);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+}
+
+:root {
+  /* DARK as default — esta app vive en dark mode */
+  --background: oklch(0.14 0.005 240);
+  --foreground: oklch(0.95 0.005 240);
+  --surface: oklch(0.18 0.006 240);
+  --surface-elev: oklch(0.22 0.008 240);
+  --border: oklch(0.28 0.01 240);
+  --muted: oklch(0.24 0.008 240);
+  --muted-foreground: oklch(0.65 0.008 240);
+
+  /* Accent — orange (consistente con el portfolio de Rober) */
+  --accent: #ff4000;
+  --accent-foreground: oklch(0.99 0.005 60);
+
+  --danger: oklch(0.62 0.22 25);
+  --warning: oklch(0.78 0.16 75);
+  --success: oklch(0.65 0.18 145);
+
+  --radius: 0.625rem;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    /* Light mode — opcional, dark es el default */
+    --background: oklch(0.98 0.003 240);
+    --foreground: oklch(0.15 0.005 240);
+    --surface: oklch(1 0 0);
+    --surface-elev: oklch(0.97 0.005 240);
+    --border: oklch(0.92 0.005 240);
+    --muted: oklch(0.96 0.005 240);
+    --muted-foreground: oklch(0.45 0.008 240);
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar discreto */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
