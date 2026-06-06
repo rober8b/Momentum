@@ -48,6 +48,7 @@ export const assignments = pgTable(
     description: text('description'),
     due_date: date('due_date'),
     status: text('status').$type<AssignmentStatus>().default('todo').notNull(),
+    resources: jsonb('resources').$type<Array<{ name: string; url: string; type?: string }>>().default([]).notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     completed_at: timestamp('completed_at', { withTimezone: true }),
   },

@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Users, LogOut } from 'lucide-react';
+import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal } from 'lucide-react';
 import { ExportButton } from './ExportButton';
+import { SearchBar } from './search/SearchBar';
 import { cn } from '@/lib/cn';
 
 const NAV = [
@@ -11,13 +13,17 @@ const NAV = [
   { href: '/uni', label: 'Uni', icon: GraduationCap },
   { href: '/work', label: 'Work', icon: Briefcase },
   { href: '/freelance', label: 'Freelance', icon: FolderKanban },
-  { href: '/projects', label: 'Proyectos', icon: FolderKanban },
+  { href: '/projects', label: 'Proyectos', icon: Rocket },
   { href: '/community', label: 'Comunidad', icon: Users },
   { href: '/build', label: 'Build', icon: Megaphone },
 ] as const;
 
+const MOBILE_NAV = NAV.filter((i) => !['/projects', '/community'].includes(i.href));
+const MORE_NAV = NAV.filter((i) => ['/projects', '/community'].includes(i.href));
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // En /login no mostramos el shell.
   if (pathname === '/login') {
@@ -33,6 +39,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="font-mono text-sm text-muted-foreground">command</span>
             <h1 className="font-sans text-lg font-semibold">center</h1>
           </Link>
+        </div>
+
+        <div className="px-3 mb-3">
+          <SearchBar />
         </div>
 
         <nav className="flex-1 px-3">
@@ -93,9 +103,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </a>
       </div>
 
-      {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-border bg-surface">
-        {NAV.map((item) => {
+      {/* Mobile bottom nav — 5 items + "más" */}
+      <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface">
+        {MOBILE_NAV.map((item) => {
           const Icon = item.icon;
           const active =
             item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
@@ -104,7 +114,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                'shrink-0 flex flex-col items-center gap-1 px-3 py-3 text-[10px]',
+                'flex-1 flex flex-col items-center gap-1 py-3 text-[10px]',
                 active ? 'text-accent' : 'text-muted-foreground',
               )}
             >
@@ -113,6 +123,46 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        <div className="relative flex-1 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setMoreOpen((o) => !o)}
+            className={cn(
+              'flex-1 flex flex-col items-center gap-1 py-3 text-[10px]',
+              MORE_NAV.some((i) => pathname.startsWith(i.href))
+                ? 'text-accent'
+                : 'text-muted-foreground',
+            )}
+          >
+            <MoreHorizontal size={17} />
+            más
+          </button>
+          {moreOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+              <div className="absolute bottom-full mb-2 right-0 z-50 w-40 rounded-lg border border-border bg-surface shadow-xl py-1">
+                {MORE_NAV.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMoreOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors',
+                        active ? 'text-accent' : 'text-muted-foreground hover:text-foreground hover:bg-surface-elev',
+                      )}
+                    >
+                      <Icon size={14} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       </nav>
 
       {/* Main */}

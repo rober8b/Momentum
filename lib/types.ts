@@ -24,6 +24,12 @@ export type Subject = {
 
 export type AssignmentStatus = 'todo' | 'in-progress' | 'done';
 
+export type AssignmentResource = {
+  name: string;
+  url: string;
+  type?: string;
+};
+
 export type Assignment = {
   id: string;
   subject_id: string | null;
@@ -31,6 +37,7 @@ export type Assignment = {
   description: string | null;
   due_date: string | null;
   status: AssignmentStatus;
+  resources: AssignmentResource[];
   created_at: string;
   completed_at: string | null;
 };

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { CheckCircle2, Circle } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { formatDate, urgencyOf } from '@/lib/date';
 import { toggleAssignmentDone } from '@/app/uni/actions';
@@ -52,9 +53,19 @@ export function AssignmentRow({ assignment }: Props) {
         {done ? <CheckCircle2 size={16} className="text-success" /> : <Circle size={16} />}
       </button>
       <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-medium leading-tight truncate', done && 'line-through')}>
-          {assignment.title}
-        </p>
+        {assignment.subject_id ? (
+          <Link
+            href={`/uni/${assignment.subject_id}/${assignment.id}`}
+            className={cn('text-sm font-medium leading-tight truncate block hover:text-accent transition-colors', done && 'line-through')}
+          >
+            {assignment.title}
+            <ArrowRight size={10} className="inline ml-1 opacity-50" />
+          </Link>
+        ) : (
+          <p className={cn('text-sm font-medium leading-tight truncate', done && 'line-through')}>
+            {assignment.title}
+          </p>
+        )}
         <div className="mt-1.5 flex items-center gap-2 flex-wrap">
           {assignment.subjectName && (
             <span className="text-xs text-muted-foreground">{assignment.subjectName}</span>

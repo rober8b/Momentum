@@ -24,6 +24,8 @@ export type TodayData = {
   assignments: (Assignment & { subjectName: string | null })[];
   workblocks: Workblock[];
   buildItems: BuildItem[];
+  freelanceTasks: (FreelanceTask & { clientName: string })[];
+  communityItems: CommunityItem[];
 };
 
 function rowToSubject(r: typeof schema.subjects.$inferSelect): Subject {
@@ -46,6 +48,7 @@ function rowToAssignment(r: typeof schema.assignments.$inferSelect): Assignment 
     description: r.description,
     due_date: r.due_date,
     status: r.status,
+    resources: (r.resources ?? []) as Assignment['resources'],
     created_at: r.created_at.toISOString(),
     completed_at: r.completed_at ? r.completed_at.toISOString() : null,
   };
@@ -160,7 +163,42 @@ export async function getTodayData(): Promise<TodayData> {
 
   const buildItems = buildRows.map(rowToBuildItem);
 
-  return { classes, assignments, workblocks, buildItems };
+  // ----- FREELANCE -----
+  const ftRows = await db
+    .select()
+    .from(schema.freelanceTasks)
+    .where(inArray(schema.freelanceTasks.status, ['today', 'in-progress']));
+
+  const clientIds = [...new Set(ftRows.map((r) => r.client_id).filter(Boolean))] as string[];
+  const clientNameMap = new Map<string, string>();
+  if (clientIds.length > 0) {
+    const clientRows = await db
+      .select({ id: schema.freelanceClients.id, name: schema.freelanceClients.name })
+      .from(schema.freelanceClients)
+      .where(inArray(schema.freelanceClients.id, clientIds));
+    for (const c of clientRows) clientNameMap.set(c.id, c.name);
+  }
+
+  const freelanceTasks = ftRows.map((r) => ({
+    ...rowToFreelanceTask(r),
+    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? 'sin cliente' : 'sin cliente',
+  }));
+
+  // ----- COMUNIDAD -----
+  const communityRows = await db
+    .select()
+    .from(schema.communityItems)
+    .where(
+      and(
+        eq(schema.communityItems.status, 'pending'),
+        lte(schema.communityItems.due_date, inDaysISO(3)),
+      ),
+    )
+    .orderBy(asc(schema.communityItems.due_date));
+
+  const communityItems = communityRows.map(rowToCommunityItem);
+
+  return { classes, assignments, workblocks, buildItems, freelanceTasks, communityItems };
 }
 
 function rowToFreelanceClient(r: typeof schema.freelanceClients.$inferSelect): FreelanceClient {

@@ -51,42 +51,46 @@ export function ScheduleEditor({
   return (
     <div className="space-y-3 mt-2">
       {slots.map((slot, i) => (
-        <div key={i} className="flex items-center gap-2 rounded-md border border-border bg-surface-elev p-2">
-          <select
-            value={slot.day}
-            onChange={(e) => update(i, { day: e.target.value as DayOfWeek })}
-            className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
-          >
-            {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <input
-            type="time"
-            value={slot.start}
-            onChange={(e) => update(i, { start: e.target.value })}
-            className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
-          />
-          <span className="text-xs text-muted-foreground">→</span>
-          <input
-            type="time"
-            value={slot.end}
-            onChange={(e) => update(i, { end: e.target.value })}
-            className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
-          />
-          <input
-            type="text"
-            placeholder="aula"
-            value={slot.room ?? ''}
-            onChange={(e) => update(i, { room: e.target.value })}
-            className={cn('rounded-sm border border-border bg-surface px-2 py-1 text-xs w-20 placeholder:text-muted-foreground')}
-          />
-          <button
-            type="button"
-            onClick={() => removeSlot(i)}
-            className="ml-auto text-muted-foreground hover:text-danger"
-            aria-label="Remove"
-          >
-            <X size={14} />
-          </button>
+        <div key={i} className="grid grid-cols-[auto_1fr] sm:flex sm:items-center gap-2 rounded-md border border-border bg-surface-elev p-2">
+          <div className="flex items-center gap-2 col-span-2 sm:contents">
+            <select
+              value={slot.day}
+              onChange={(e) => update(i, { day: e.target.value as DayOfWeek })}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
+            >
+              {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <input
+              type="time"
+              value={slot.start}
+              onChange={(e) => update(i, { start: e.target.value })}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">→</span>
+            <input
+              type="time"
+              value={slot.end}
+              onChange={(e) => update(i, { end: e.target.value })}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2 col-span-2 sm:contents">
+            <input
+              type="text"
+              placeholder="aula"
+              value={slot.room ?? ''}
+              onChange={(e) => update(i, { room: e.target.value })}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1 sm:w-20 sm:flex-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="button"
+              onClick={() => removeSlot(i)}
+              className="ml-auto text-muted-foreground hover:text-danger"
+              aria-label="Remove"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       ))}
       <div className="flex items-center justify-between">

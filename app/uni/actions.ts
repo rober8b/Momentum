@@ -98,3 +98,44 @@ export async function updateAssignment(
   revalidatePath('/uni');
   revalidatePath('/');
 }
+
+const resourceSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().url(),
+  type: z.string().optional(),
+});
+
+export async function addResource(assignmentId: string, resource: z.infer<typeof resourceSchema>) {
+  await requireRober();
+  const parsed = resourceSchema.parse(resource);
+  const [row] = await db
+    .select({ resources: schema.assignments.resources })
+    .from(schema.assignments)
+    .where(eq(schema.assignments.id, assignmentId))
+    .limit(1);
+  if (!row) return;
+  const current = (row.resources ?? []) as Array<{ name: string; url: string; type?: string }>;
+  await db
+    .update(schema.assignments)
+    .set({ resources: [...current, parsed] })
+    .where(eq(schema.assignments.id, assignmentId));
+  revalidatePath('/uni');
+  revalidatePath('/');
+}
+
+export async function removeResource(assignmentId: string, url: string) {
+  await requireRober();
+  const [row] = await db
+    .select({ resources: schema.assignments.resources })
+    .from(schema.assignments)
+    .where(eq(schema.assignments.id, assignmentId))
+    .limit(1);
+  if (!row) return;
+  const current = (row.resources ?? []) as Array<{ name: string; url: string; type?: string }>;
+  await db
+    .update(schema.assignments)
+    .set({ resources: current.filter((r) => r.url !== url) })
+    .where(eq(schema.assignments.id, assignmentId));
+  revalidatePath('/uni');
+  revalidatePath('/');
+}

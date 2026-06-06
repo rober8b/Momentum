@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, GraduationCap, Briefcase, Megaphone } from 'lucide-react';
+import { ArrowRight, GraduationCap, Briefcase, Megaphone, FolderKanban, Users } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ClassCard } from './ClassCard';
 import { AssignmentRow } from './AssignmentRow';
@@ -22,7 +22,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
           </h2>
         </div>
         <p className="text-xs text-muted-foreground font-mono">
-          {data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length} items pendientes
+          {data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length + data.freelanceTasks.length + data.communityItems.length} items pendientes
         </p>
       </div>
 
@@ -123,6 +123,73 @@ export function TodayDashboard({ data }: { data: TodayData }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Compact strip: freelance + community */}
+      {(data.freelanceTasks.length > 0 || data.communityItems.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-4 lg:mt-6">
+          {data.freelanceTasks.length > 0 && (
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>
+                  <FolderKanban size={14} className="inline mr-1.5 -mt-0.5" />
+                  freelance activo
+                </CardTitle>
+                <Link
+                  href="/freelance"
+                  className="text-xs text-muted-foreground hover:text-accent transition-colors inline-flex items-center gap-1"
+                >
+                  ver todo <ArrowRight size={10} />
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {data.freelanceTasks.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-elev p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-tight truncate">{t.title}</p>
+                        <span className="text-[10px] text-muted-foreground">{t.clientName}</span>
+                      </div>
+                      <span className="text-[10px] text-accent uppercase shrink-0">{t.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {data.communityItems.length > 0 && (
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>
+                  <Users size={14} className="inline mr-1.5 -mt-0.5" />
+                  compromisos proximos
+                </CardTitle>
+                <Link
+                  href="/community"
+                  className="text-xs text-muted-foreground hover:text-accent transition-colors inline-flex items-center gap-1"
+                >
+                  ver todo <ArrowRight size={10} />
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {data.communityItems.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-elev p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-tight truncate">{c.title}</p>
+                        <span className="text-[10px] text-muted-foreground">{c.organization}</span>
+                      </div>
+                      {c.due_date && (
+                        <span className="text-[10px] text-warning shrink-0">{c.due_date}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }
