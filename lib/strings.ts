@@ -4,7 +4,7 @@
 export const strings = {
   en: {
     // App
-    appTitle: 'command center',
+    appTitle: 'momentum',
     appDescription: 'Personal daily dashboard',
 
     // Nav sections
@@ -81,7 +81,7 @@ export const strings = {
   },
   es: {
     // App
-    appTitle: 'command center',
+    appTitle: 'momentum',
     appDescription: 'Dashboard personal diario',
 
     // Nav sections

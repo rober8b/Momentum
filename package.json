@@ -1,12 +1,12 @@
 {
-  "name": "command-center",
+  "name": "momentum",
   "version": "0.1.0",
-  "description": "A self-hosted personal operating system for your week",
+  "description": "The organization platform for builders",
   "author": "[Your Name]",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PLACEHOLDER/command-center"
+    "url": "https://github.com/rober8b/Momentum"
   },
   "keywords": [
     "dashboard",
@@ -22,9 +22,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "db:seed:demo": "node --env-file=.env.local --input-type=module < scripts/seed-demo.ts",
-    "db:seed:minimal": "node --env-file=.env.local --input-type=module < scripts/seed-minimal.ts",
-    "db:reset": "node --env-file=.env.local --input-type=module < scripts/db-reset.ts"
+    "db:seed:demo": "npx tsx --env-file=.env.local scripts/seed-demo.ts",
+    "db:seed:minimal": "npx tsx --env-file=.env.local scripts/seed-minimal.ts",
+    "db:reset": "npx tsx --env-file=.env.local scripts/db-reset.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

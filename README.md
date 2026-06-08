@@ -1,11 +1,11 @@
-# command-center
+# momentum
 
-**A self-hosted personal operating system for your week.**
+**The organization platform for builders.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/PLACEHOLDER/command-center&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/rober8b/Momentum&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
 
 ---
 
@@ -21,7 +21,7 @@
 
 ## What is this?
 
-command-center is a personal dashboard with 7 pillars: **Today**, **Uni**, **Work**, **Freelance**, **Projects**, **Community**, and **Build-in-public**. It aggregates your daily context into one view — what classes you have today, what tickets are in progress, which freelance clients need attention, and what build ideas are queued.
+Momentum is a personal dashboard with 7 pillars: **Today**, **Uni**, **Work**, **Freelance**, **Projects**, **Community**, and **Build-in-public**. It aggregates your daily context into one view — what classes you have today, what tickets are in progress, which freelance clients need attention, and what build ideas are queued.
 
 It is designed to be self-hosted. There is no cloud service, no subscription, no vendor lock-in. You own your data — it lives in a Postgres database you control. Deploy takes about 15 minutes with Vercel + Railway.
 
@@ -70,8 +70,8 @@ It is designed to be self-hosted. There is no cloud service, no subscription, no
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/PLACEHOLDER/command-center.git
-cd command-center
+git clone https://github.com/rober8b/Momentum.git
+cd Momentum
 ```
 
 ### 2. Install dependencies
@@ -144,7 +144,7 @@ Set the same env vars in **Vercel → Project → Settings → Environment Varia
 
 ### One-click Vercel deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/PLACEHOLDER/command-center&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/rober8b/Momentum&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
 
 ### Database (Railway)
 

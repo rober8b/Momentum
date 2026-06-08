@@ -35,7 +35,7 @@ export function ExportButton() {
     // Genera un único archivo .md con todos los exports concatenados.
     // V2: empaquetar como zip real con jszip.
     const parts: string[] = [
-      '# command-center export',
+      '# momentum export',
       '',
       `Semana: ${data.week.start} → ${data.week.end}`,
       `Items: ${data.counts.workblocks + data.counts.assignments + data.counts.buildItems}`,
@@ -54,7 +54,7 @@ export function ExportButton() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `command-center-${data.week.end}-export.md`;
+    a.download = `momentum-${data.week.end}-export.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
