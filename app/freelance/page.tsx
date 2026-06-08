@@ -1,19 +1,19 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { ClientCard } from '@/components/freelance/ClientCard';
 import { ClientForm } from '@/components/freelance/ClientForm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
 import { getLastPush, formatPush } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FreelancePage() {
-  await requireRober();
+  const user = await requireUser();
 
   const [clientRows, taskRows] = await Promise.all([
-    db.select().from(schema.freelanceClients).orderBy(asc(schema.freelanceClients.name)),
-    db.select().from(schema.freelanceTasks),
+    db.select().from(schema.freelanceClients).where(eq(schema.freelanceClients.user_id, user.id)).orderBy(asc(schema.freelanceClients.name)),
+    db.select().from(schema.freelanceTasks).where(eq(schema.freelanceTasks.user_id, user.id)),
   ]);
 
   const clients = clientRows.map(rowToFreelanceClient);

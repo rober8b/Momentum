@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { Plus, Lightbulb, FileText, Send, Ban, ArchiveRestore } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -7,17 +7,18 @@ import { IdeaCard } from '@/components/build/IdeaCard';
 import { DraftCard, PublishedRow } from '@/components/build/DraftCard';
 import { DiscardedRow } from '@/components/build/DiscardedRow';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToBuildItem } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BuildPage() {
-  await requireRober();
+  const user = await requireUser();
 
   const rows = await db
     .select()
     .from(schema.buildItems)
+    .where(eq(schema.buildItems.user_id, user.id))
     .orderBy(desc(schema.buildItems.created_at));
 
   const items = rows.map(rowToBuildItem);

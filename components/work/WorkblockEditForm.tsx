@@ -16,7 +16,7 @@ const TYPES: WorkblockType[] = ['ticket', 'task', 'meeting', 'review'];
 const STATUSES: WorkblockStatus[] = ['backlog', 'today', 'in-progress', 'blocked', 'done'];
 const PRIORITIES: WorkblockPriority[] = ['low', 'med', 'high'];
 
-export function WorkblockEditForm({ workblock }: { workblock: Workblock }) {
+export function WorkblockEditForm({ workblock, tz }: { workblock: Workblock; tz: string }) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -85,7 +85,7 @@ export function WorkblockEditForm({ workblock }: { workblock: Workblock }) {
                 {workblock.priority}
               </Badge>
               <Badge variant="accent">{workblock.status}</Badge>
-              {workblock.due_date && <Badge variant="warning">due {formatDate(workblock.due_date)}</Badge>}
+              {workblock.due_date && <Badge variant="warning">due {formatDate(workblock.due_date, tz)}</Badge>}
             </div>
             <h1 className="text-2xl font-semibold leading-tight">{workblock.title}</h1>
           </div>

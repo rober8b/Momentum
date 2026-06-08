@@ -1,7 +1,7 @@
 import 'server-only';
 import { db, schema } from '@/lib/db';
 import { and, eq, inArray, lte, ne, desc, asc, sql } from 'drizzle-orm';
-import { todayKey, inDaysISO } from '@/lib/date';
+import { todayKey, inDaysISO, formatFullDate } from '@/lib/date';
 import type {
   Subject,
   Assignment,
@@ -26,6 +26,8 @@ export type TodayData = {
   buildItems: BuildItem[];
   freelanceTasks: (FreelanceTask & { clientName: string })[];
   communityItems: CommunityItem[];
+  tz: string;
+  formattedDate: string;
 };
 
 function rowToSubject(r: typeof schema.subjects.$inferSelect): Subject {
@@ -93,14 +95,14 @@ function rowToBuildItem(r: typeof schema.buildItems.$inferSelect): BuildItem {
 // Priorities sortable as enum: high > med > low
 const PRIORITY_ORDER = sql`case ${schema.workblocks.priority} when 'high' then 0 when 'med' then 1 when 'low' then 2 else 3 end`;
 
-export async function getTodayData(): Promise<TodayData> {
-  const day = todayKey();
+export async function getTodayData(userId: string, tz: string): Promise<TodayData> {
+  const day = todayKey(tz);
 
   // ----- UNIVERSIDAD -----
   const subjectsRows = await db
     .select()
     .from(schema.subjects)
-    .where(eq(schema.subjects.active, true));
+    .where(and(eq(schema.subjects.user_id, userId), eq(schema.subjects.active, true)));
 
   const allSubjects = subjectsRows.map(rowToSubject);
 
@@ -117,8 +119,9 @@ export async function getTodayData(): Promise<TodayData> {
     .from(schema.assignments)
     .where(
       and(
+        eq(schema.assignments.user_id, userId),
         ne(schema.assignments.status, 'done'),
-        lte(schema.assignments.due_date, inDaysISO(7)),
+        lte(schema.assignments.due_date, inDaysISO(7, tz)),
       ),
     )
     .orderBy(asc(schema.assignments.due_date));
@@ -134,13 +137,14 @@ export async function getTodayData(): Promise<TodayData> {
     db
       .select()
       .from(schema.workblocks)
-      .where(inArray(schema.workblocks.status, ['today', 'in-progress']))
+      .where(and(eq(schema.workblocks.user_id, userId), inArray(schema.workblocks.status, ['today', 'in-progress'])))
       .orderBy(PRIORITY_ORDER, asc(schema.workblocks.position)),
     db
       .select()
       .from(schema.workblocks)
       .where(
         and(
+          eq(schema.workblocks.user_id, userId),
           eq(schema.workblocks.status, 'backlog'),
           eq(schema.workblocks.priority, 'high'),
         ),
@@ -157,7 +161,7 @@ export async function getTodayData(): Promise<TodayData> {
   const buildRows = await db
     .select()
     .from(schema.buildItems)
-    .where(inArray(schema.buildItems.status, ['idea', 'draft']))
+    .where(and(eq(schema.buildItems.user_id, userId), inArray(schema.buildItems.status, ['idea', 'draft'])))
     .orderBy(desc(schema.buildItems.created_at))
     .limit(8);
 
@@ -167,7 +171,7 @@ export async function getTodayData(): Promise<TodayData> {
   const ftRows = await db
     .select()
     .from(schema.freelanceTasks)
-    .where(inArray(schema.freelanceTasks.status, ['today', 'in-progress']));
+    .where(and(eq(schema.freelanceTasks.user_id, userId), inArray(schema.freelanceTasks.status, ['today', 'in-progress'])));
 
   const clientIds = [...new Set(ftRows.map((r) => r.client_id).filter(Boolean))] as string[];
   const clientNameMap = new Map<string, string>();
@@ -190,15 +194,25 @@ export async function getTodayData(): Promise<TodayData> {
     .from(schema.communityItems)
     .where(
       and(
+        eq(schema.communityItems.user_id, userId),
         eq(schema.communityItems.status, 'pending'),
-        lte(schema.communityItems.due_date, inDaysISO(3)),
+        lte(schema.communityItems.due_date, inDaysISO(3, tz)),
       ),
     )
     .orderBy(asc(schema.communityItems.due_date));
 
   const communityItems = communityRows.map(rowToCommunityItem);
 
-  return { classes, assignments, workblocks, buildItems, freelanceTasks, communityItems };
+  return {
+    classes,
+    assignments,
+    workblocks,
+    buildItems,
+    freelanceTasks,
+    communityItems,
+    tz,
+    formattedDate: formatFullDate(tz),
+  };
 }
 
 function rowToFreelanceClient(r: typeof schema.freelanceClients.$inferSelect): FreelanceClient {

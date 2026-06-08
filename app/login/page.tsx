@@ -1,6 +1,11 @@
 import { redirect } from 'next/navigation';
-import { isAuthed } from '@/lib/auth';
+import { verifySession } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { db, schema } from '@/lib/db';
+import { COOKIE_NAME } from '@/lib/auth';
 import { LoginForm } from './LoginForm';
+
+export const dynamic = 'force-dynamic';
 
 type SearchParams = Promise<{ next?: string }>;
 
@@ -11,7 +16,16 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams;
 
-  if (await isAuthed()) {
+  // Redirect to setup if no users exist yet
+  const [firstUser] = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
+  if (!firstUser) {
+    redirect('/setup');
+  }
+
+  // Already logged in — go to destination
+  const store = await cookies();
+  const signed = store.get(COOKIE_NAME)?.value;
+  if (signed && verifySession(signed)) {
     redirect(next && next.startsWith('/') ? next : '/');
   }
 
@@ -23,7 +37,6 @@ export default async function LoginPage({
             command
           </p>
           <h1 className="text-2xl font-semibold">center</h1>
-          <p className="text-xs text-muted-foreground mt-2 font-mono">single-user · rober</p>
         </div>
         <LoginForm next={next ?? '/'} />
       </div>

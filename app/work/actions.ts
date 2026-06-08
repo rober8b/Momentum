@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 import type { WorkblockStatus } from '@/lib/types';
 
 const STATUSES = ['backlog', 'today', 'in-progress', 'blocked', 'done'] as const;
@@ -23,21 +24,22 @@ const workblockSchema = z.object({
 });
 
 export async function createWorkblock(input: z.infer<typeof workblockSchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = workblockSchema.parse(input);
-  await db.insert(schema.workblocks).values(parsed);
+  const [row] = await db.insert(schema.workblocks).values({ ...parsed, user_id: user.id }).returning({ id: schema.workblocks.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'workblock', entityId: row?.id });
   revalidatePath('/work');
   revalidatePath('/');
 }
 
 export async function updateWorkblockStatus(id: string, status: WorkblockStatus) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = statusEnum.parse(status);
   const completed_at = parsed === 'done' ? new Date() : null;
   await db
     .update(schema.workblocks)
     .set({ status: parsed, completed_at })
-    .where(eq(schema.workblocks.id, id));
+    .where(and(eq(schema.workblocks.id, id), eq(schema.workblocks.user_id, user.id)));
   revalidatePath('/work');
   revalidatePath('/');
 }
@@ -48,17 +50,18 @@ export async function updateWorkblock(
   id: string,
   patch: z.infer<typeof updateSchema>,
 ) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = updateSchema.parse(patch);
-  await db.update(schema.workblocks).set(parsed).where(eq(schema.workblocks.id, id));
+  await db.update(schema.workblocks).set(parsed).where(and(eq(schema.workblocks.id, id), eq(schema.workblocks.user_id, user.id)));
   revalidatePath('/work');
   revalidatePath(`/work/${id}`);
   revalidatePath('/');
 }
 
 export async function deleteWorkblock(id: string) {
-  await requireRober();
-  await db.delete(schema.workblocks).where(eq(schema.workblocks.id, id));
+  const user = await requireUser();
+  await db.delete(schema.workblocks).where(and(eq(schema.workblocks.id, id), eq(schema.workblocks.user_id, user.id)));
+  logAudit({ userId: user.id, action: 'delete', entityType: 'workblock', entityId: id });
   revalidatePath('/work');
   revalidatePath('/');
 }

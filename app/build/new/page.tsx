@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { BuildEditor } from '@/components/build/BuildEditor';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToBuildItem } from '@/lib/today';
 import type { BuildItem } from '@/lib/types';
 
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 type SearchParams = Promise<{ edit?: string; from?: string }>;
 
 export default async function BuildNewPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireRober();
+  await requireUser();
   const { edit, from } = await searchParams;
 
   let existing: BuildItem | null = null;

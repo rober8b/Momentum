@@ -11,6 +11,7 @@ import type { Assignment } from '@/lib/types';
 
 type Props = {
   assignment: Assignment & { subjectName: string | null };
+  tz?: string;
 };
 
 const URGENCY_BADGE: Record<
@@ -24,10 +25,10 @@ const URGENCY_BADGE: Record<
   none: { variant: 'default', label: 'sin fecha' },
 };
 
-export function AssignmentRow({ assignment }: Props) {
+export function AssignmentRow({ assignment, tz = 'UTC' }: Props) {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(assignment.status === 'done');
-  const urgency = urgencyOf(assignment.due_date);
+  const urgency = urgencyOf(assignment.due_date, tz);
   const badge = URGENCY_BADGE[urgency];
 
   return (
@@ -73,7 +74,7 @@ export function AssignmentRow({ assignment }: Props) {
           <Badge variant={badge.variant}>
             {badge.label}
             {assignment.due_date && urgency !== 'today' && (
-              <span className="ml-1 opacity-75">{formatDate(assignment.due_date)}</span>
+              <span className="ml-1 opacity-75">{formatDate(assignment.due_date, tz)}</span>
             )}
           </Badge>
         </div>

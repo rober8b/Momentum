@@ -1,9 +1,9 @@
-import { asc, ne, eq } from 'drizzle-orm';
+import { and, asc, ne, eq } from 'drizzle-orm';
 import { CommitmentRow } from '@/components/community/CommitmentRow';
 import { CommunityForm } from '@/components/community/CommunityForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToCommunityItem } from '@/lib/today';
 import type { CommunityOrg } from '@/lib/types';
 
@@ -19,18 +19,18 @@ const ORG_LABELS: Record<CommunityOrg, string> = {
 const ORGS: CommunityOrg[] = ['ai-consensus', 'levellers', 'xplora', 'other'];
 
 export default async function CommunityPage() {
-  await requireRober();
+  const user = await requireUser();
 
   const [activeRows, cancelledRows] = await Promise.all([
     db
       .select()
       .from(schema.communityItems)
-      .where(ne(schema.communityItems.status, 'cancelled'))
+      .where(and(ne(schema.communityItems.status, 'cancelled'), eq(schema.communityItems.user_id, user.id)))
       .orderBy(asc(schema.communityItems.due_date)),
     db
       .select()
       .from(schema.communityItems)
-      .where(eq(schema.communityItems.status, 'cancelled'))
+      .where(and(eq(schema.communityItems.status, 'cancelled'), eq(schema.communityItems.user_id, user.id)))
       .orderBy(asc(schema.communityItems.created_at)),
   ]);
 
@@ -65,7 +65,7 @@ export default async function CommunityPage() {
             <CardContent>
               <div className="space-y-2">
                 {orgItems.map((item) => (
-                  <CommitmentRow key={item.id} item={item} />
+                  <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} />
                 ))}
               </div>
             </CardContent>
@@ -87,7 +87,7 @@ export default async function CommunityPage() {
           <CardContent>
             <div className="space-y-2">
               {done.slice(0, 10).map((item) => (
-                <CommitmentRow key={item.id} item={item} />
+                <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} />
               ))}
             </div>
           </CardContent>

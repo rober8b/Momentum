@@ -1,19 +1,20 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToOwnProject } from '@/lib/today';
 import { getLastPush, formatPush } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProjectsPage() {
-  await requireRober();
+  const user = await requireUser();
 
   const rows = await db
     .select()
     .from(schema.ownProjects)
+    .where(eq(schema.ownProjects.user_id, user.id))
     .orderBy(asc(schema.ownProjects.created_at));
 
   const projects = rows.map(rowToOwnProject);

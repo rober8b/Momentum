@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 const dayEnum = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
 const slotSchema = z.object({
@@ -22,9 +23,10 @@ const subjectSchema = z.object({
 });
 
 export async function createSubject(input: z.infer<typeof subjectSchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = subjectSchema.parse(input);
-  await db.insert(schema.subjects).values(parsed);
+  const [row] = await db.insert(schema.subjects).values({ ...parsed, user_id: user.id }).returning({ id: schema.subjects.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'subject', entityId: row?.id });
   revalidatePath('/uni');
   revalidatePath('/');
 }
@@ -33,12 +35,12 @@ export async function updateSubjectSchedule(
   id: string,
   scheduleInput: z.infer<typeof slotSchema>[],
 ) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = z.array(slotSchema).parse(scheduleInput);
   await db
     .update(schema.subjects)
     .set({ schedule: parsed })
-    .where(eq(schema.subjects.id, id));
+    .where(and(eq(schema.subjects.id, id), eq(schema.subjects.user_id, user.id)));
   revalidatePath('/uni');
   revalidatePath('/');
 }
@@ -51,29 +53,31 @@ const assignmentSchema = z.object({
 });
 
 export async function createAssignment(input: z.infer<typeof assignmentSchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = assignmentSchema.parse(input);
-  await db.insert(schema.assignments).values({ ...parsed, status: 'todo' });
+  const [row] = await db.insert(schema.assignments).values({ ...parsed, user_id: user.id, status: 'todo' }).returning({ id: schema.assignments.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'assignment', entityId: row?.id });
   revalidatePath('/uni');
   revalidatePath('/');
 }
 
 export async function toggleAssignmentDone(id: string, done: boolean) {
-  await requireRober();
+  const user = await requireUser();
   await db
     .update(schema.assignments)
     .set({
       status: done ? 'done' : 'todo',
       completed_at: done ? new Date() : null,
     })
-    .where(eq(schema.assignments.id, id));
+    .where(and(eq(schema.assignments.id, id), eq(schema.assignments.user_id, user.id)));
   revalidatePath('/uni');
   revalidatePath('/');
 }
 
 export async function deleteAssignment(id: string) {
-  await requireRober();
-  await db.delete(schema.assignments).where(eq(schema.assignments.id, id));
+  const user = await requireUser();
+  await db.delete(schema.assignments).where(and(eq(schema.assignments.id, id), eq(schema.assignments.user_id, user.id)));
+  logAudit({ userId: user.id, action: 'delete', entityType: 'assignment', entityId: id });
   revalidatePath('/uni');
   revalidatePath('/');
 }
@@ -89,12 +93,12 @@ export async function updateAssignment(
   id: string,
   patch: z.infer<typeof updateAssignmentSchema>,
 ) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = updateAssignmentSchema.parse(patch);
   const data: Record<string, unknown> = { ...parsed };
   if (parsed.status === 'done') data.completed_at = new Date();
   if (parsed.status && parsed.status !== 'done') data.completed_at = null;
-  await db.update(schema.assignments).set(data).where(eq(schema.assignments.id, id));
+  await db.update(schema.assignments).set(data).where(and(eq(schema.assignments.id, id), eq(schema.assignments.user_id, user.id)));
   revalidatePath('/uni');
   revalidatePath('/');
 }
@@ -106,36 +110,36 @@ const resourceSchema = z.object({
 });
 
 export async function addResource(assignmentId: string, resource: z.infer<typeof resourceSchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = resourceSchema.parse(resource);
   const [row] = await db
     .select({ resources: schema.assignments.resources })
     .from(schema.assignments)
-    .where(eq(schema.assignments.id, assignmentId))
+    .where(and(eq(schema.assignments.id, assignmentId), eq(schema.assignments.user_id, user.id)))
     .limit(1);
   if (!row) return;
   const current = (row.resources ?? []) as Array<{ name: string; url: string; type?: string }>;
   await db
     .update(schema.assignments)
     .set({ resources: [...current, parsed] })
-    .where(eq(schema.assignments.id, assignmentId));
+    .where(and(eq(schema.assignments.id, assignmentId), eq(schema.assignments.user_id, user.id)));
   revalidatePath('/uni');
   revalidatePath('/');
 }
 
 export async function removeResource(assignmentId: string, url: string) {
-  await requireRober();
+  const user = await requireUser();
   const [row] = await db
     .select({ resources: schema.assignments.resources })
     .from(schema.assignments)
-    .where(eq(schema.assignments.id, assignmentId))
+    .where(and(eq(schema.assignments.id, assignmentId), eq(schema.assignments.user_id, user.id)))
     .limit(1);
   if (!row) return;
   const current = (row.resources ?? []) as Array<{ name: string; url: string; type?: string }>;
   await db
     .update(schema.assignments)
     .set({ resources: current.filter((r) => r.url !== url) })
-    .where(eq(schema.assignments.id, assignmentId));
+    .where(and(eq(schema.assignments.id, assignmentId), eq(schema.assignments.user_id, user.id)));
   revalidatePath('/uni');
   revalidatePath('/');
 }

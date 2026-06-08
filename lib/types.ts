@@ -1,5 +1,36 @@
-// Shared types — espejo del schema de Supabase (supabase/schema.sql)
-// Mantener sincronizado a mano hasta que se autogenerre con supabase gen types.
+// Shared types — mirrors the Drizzle schema in lib/db/schema.ts.
+
+// ---------- USERS ----------
+
+export type UserRole = 'admin' | 'member';
+
+export type UserSettings = {
+  timezone: string;
+  language: 'en' | 'es';
+  theme: 'dark' | 'light';
+  export_enabled: boolean;
+  vault_path: string;
+};
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  timezone: 'UTC',
+  language: 'en',
+  theme: 'dark',
+  export_enabled: false,
+  vault_path: '',
+};
+
+export type User = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: UserRole;
+  active: boolean;
+  settings: UserSettings;
+  invalidate_sessions_before: number | null;
+  created_at: string;
+  last_login_at: string | null;
+};
 
 // ---------- UNIVERSIDAD ----------
 

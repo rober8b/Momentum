@@ -17,7 +17,7 @@ const PRIORITY = {
   low: { variant: 'muted' as const, icon: null },
 };
 
-export function BlockCard({ workblock }: { workblock: Workblock }) {
+export function BlockCard({ workblock, tz }: { workblock: Workblock; tz: string }) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(workblock.status);
   const p = PRIORITY[workblock.priority];
@@ -63,7 +63,7 @@ export function BlockCard({ workblock }: { workblock: Workblock }) {
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
           <span>{workblock.type}</span>
-          {workblock.due_date && <span>· {formatDate(workblock.due_date)}</span>}
+          {workblock.due_date && <span>· {formatDate(workblock.due_date, tz)}</span>}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {prev && (

@@ -1,8 +1,8 @@
 'use server';
 
-import { ilike } from 'drizzle-orm';
+import { and, eq, ilike } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 
 export type SearchResult = {
   id: string;
@@ -13,48 +13,49 @@ export type SearchResult = {
 };
 
 export async function searchAll(query: string): Promise<SearchResult[]> {
-  await requireRober();
+  const user = await requireUser();
   const q = query.trim();
   if (q.length < 2) return [];
 
   const pattern = `%${q}%`;
+  const uid = user.id;
 
   const [assignments, workblocks, buildItems, clients, fTasks, projects, community] =
     await Promise.all([
       db
         .select({ id: schema.assignments.id, title: schema.assignments.title, subject_id: schema.assignments.subject_id })
         .from(schema.assignments)
-        .where(ilike(schema.assignments.title, pattern))
+        .where(and(eq(schema.assignments.user_id, uid), ilike(schema.assignments.title, pattern)))
         .limit(3),
       db
         .select({ id: schema.workblocks.id, title: schema.workblocks.title, status: schema.workblocks.status })
         .from(schema.workblocks)
-        .where(ilike(schema.workblocks.title, pattern))
+        .where(and(eq(schema.workblocks.user_id, uid), ilike(schema.workblocks.title, pattern)))
         .limit(3),
       db
         .select({ id: schema.buildItems.id, title: schema.buildItems.title, status: schema.buildItems.status })
         .from(schema.buildItems)
-        .where(ilike(schema.buildItems.title, pattern))
+        .where(and(eq(schema.buildItems.user_id, uid), ilike(schema.buildItems.title, pattern)))
         .limit(3),
       db
         .select({ id: schema.freelanceClients.id, name: schema.freelanceClients.name })
         .from(schema.freelanceClients)
-        .where(ilike(schema.freelanceClients.name, pattern))
+        .where(and(eq(schema.freelanceClients.user_id, uid), ilike(schema.freelanceClients.name, pattern)))
         .limit(3),
       db
         .select({ id: schema.freelanceTasks.id, title: schema.freelanceTasks.title, client_id: schema.freelanceTasks.client_id })
         .from(schema.freelanceTasks)
-        .where(ilike(schema.freelanceTasks.title, pattern))
+        .where(and(eq(schema.freelanceTasks.user_id, uid), ilike(schema.freelanceTasks.title, pattern)))
         .limit(3),
       db
         .select({ id: schema.ownProjects.id, name: schema.ownProjects.name })
         .from(schema.ownProjects)
-        .where(ilike(schema.ownProjects.name, pattern))
+        .where(and(eq(schema.ownProjects.user_id, uid), ilike(schema.ownProjects.name, pattern)))
         .limit(3),
       db
         .select({ id: schema.communityItems.id, title: schema.communityItems.title, organization: schema.communityItems.organization })
         .from(schema.communityItems)
-        .where(ilike(schema.communityItems.title, pattern))
+        .where(and(eq(schema.communityItems.user_id, uid), ilike(schema.communityItems.title, pattern)))
         .limit(3),
     ]);
 
