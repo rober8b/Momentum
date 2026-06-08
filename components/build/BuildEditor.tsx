@@ -120,7 +120,7 @@ export function BuildEditor({
             type="text"
             value={relatedProject}
             onChange={(e) => setRelatedProject(e.target.value)}
-            placeholder="marketplace / portfolio / aleph / ..."
+            placeholder="marketplace / saas / portfolio / ..."
             className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:border-accent"
           />
         </div>

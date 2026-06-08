@@ -79,7 +79,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
           <CardHeader className="flex items-center justify-between">
             <CardTitle>
               <Briefcase size={14} className="inline mr-1.5 -mt-0.5" />
-              hoy en aleph
+              trabajo hoy
             </CardTitle>
             <Link
               href="/work"

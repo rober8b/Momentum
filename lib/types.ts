@@ -73,7 +73,7 @@ export type Assignment = {
   completed_at: string | null;
 };
 
-// ---------- WORK (Aleph) ----------
+// ---------- WORK ----------
 
 export type WorkblockType = 'ticket' | 'task' | 'meeting' | 'review';
 export type WorkblockStatus = 'backlog' | 'today' | 'in-progress' | 'blocked' | 'done';

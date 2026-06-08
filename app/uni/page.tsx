@@ -42,7 +42,7 @@ export default async function UniPage() {
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-7xl">
       <div className="mb-6 lg:mb-8">
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-          uni · ucema 2026-1
+          uni
         </p>
         <h2 className="text-2xl lg:text-3xl font-semibold mt-1">agenda</h2>
         <div className="mt-2 flex items-center gap-3">

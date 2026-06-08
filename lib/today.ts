@@ -185,7 +185,7 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
 
   const freelanceTasks = ftRows.map((r) => ({
     ...rowToFreelanceTask(r),
-    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? 'sin cliente' : 'sin cliente',
+    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? '' : '',
   }));
 
   // ----- COMUNIDAD -----
