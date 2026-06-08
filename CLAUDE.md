@@ -248,13 +248,13 @@ if (!row) notFound();
 - `APP_PASSWORD` — password única para entrar
 - `SESSION_SECRET` — HMAC secret (min 16 chars, recomendado 32+)
 
-**Cookie:** `cc_session` — formato `ok.<hmac-base64url>`, HttpOnly, SameSite=Lax, Secure en prod, expires 30d.
+**Cookie:** `momentum_session` — formato `ok.<hmac-base64url>`, HttpOnly, SameSite=Lax, Secure en prod, expires 30d.
 
 **Flujo:**
 
 1. Request entra → `proxy.ts` (Edge runtime, Web Crypto)
 2. Path matchea `/login` o `/api/export` (cron) → pasa
-3. Lee cookie `cc_session` → verifica HMAC con `SESSION_SECRET` via `crypto.subtle`
+3. Lee cookie `momentum_session` → verifica HMAC con `SESSION_SECRET` via `crypto.subtle`
 4. Cookie inválida o ausente → redirect a `/login?next=<original>`
 5. Cookie válida → continúa al handler
 6. Server Component / Server Action llama `requireRober()` desde `lib/auth.ts` (Node runtime, `node:crypto`)

@@ -26,7 +26,7 @@
 
 **Cookie format:**
 ```
-cc_session = {userId}.{iat}.{hmac(sha256, SESSION_SECRET, "{userId}.{iat}")}
+momentum_session = {userId}.{iat}.{hmac(sha256, SESSION_SECRET, "{userId}.{iat}")}
 ```
 
 ---
@@ -174,7 +174,7 @@ La tabla en DB es la única fuente de verdad, por eso se usa la tabla y no `Map`
 - rounds=12 (~300ms en hardware moderno) — aceptable para uso personal
 
 **`requireUser()` internals:**
-1. Lee cookie `cc_session`
+1. Lee cookie `momentum_session`
 2. `verifySession()` extrae userId + verifica HMAC + verifica que `iat >= user.invalidate_sessions_before`
 3. Query a DB: `SELECT * FROM users WHERE id = userId AND active = true`
 4. Si no existe o está inactivo → throw `'NOT_SIGNED_IN'`
