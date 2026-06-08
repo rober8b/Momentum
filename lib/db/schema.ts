@@ -27,6 +27,7 @@ import type {
   FreelanceTaskStatus,
   ProjectStatus,
   CommunityStatus,
+  ApiScope,
 } from '@/lib/types';
 
 // ---------- USERS ----------
@@ -292,6 +293,28 @@ export const communityItems = pgTable(
   (t) => [index('community_items_user_status_idx').on(t.user_id, t.status)],
 );
 
+// ---------- API TOKENS ----------
+
+export const apiTokens = pgTable(
+  'api_tokens',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    token_hash: text('token_hash').notNull().unique(),
+    token_prefix: text('token_prefix').notNull(),
+    scopes: jsonb('scopes').$type<ApiScope[]>().notNull().default([]),
+    last_used_at: timestamp('last_used_at', { withTimezone: true }),
+    expires_at: timestamp('expires_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    revoked_at: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('api_tokens_user_id_idx').on(t.user_id),
+    index('api_tokens_token_hash_idx').on(t.token_hash),
+  ],
+);
+
 // ---------- TYPES ----------
 
 export type UserRow = typeof users.$inferSelect;
@@ -314,3 +337,5 @@ export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationInsert = typeof organizations.$inferInsert;
 export type CommunityItemRow = typeof communityItems.$inferSelect;
 export type CommunityItemInsert = typeof communityItems.$inferInsert;
+export type ApiTokenRow = typeof apiTokens.$inferSelect;
+export type ApiTokenInsert = typeof apiTokens.$inferInsert;
