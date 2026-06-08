@@ -24,15 +24,16 @@ const URGENCY_BADGE: Record<
 
 type Props = {
   assignment: Assignment & { subjectName: string | null };
+  tz?: string;
 };
 
-export function AssignmentEditRow({ assignment }: Props) {
+export function AssignmentEditRow({ assignment, tz = 'UTC' }: Props) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(assignment.status === 'done');
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const urgency = urgencyOf(assignment.due_date);
+  const urgency = urgencyOf(assignment.due_date, tz);
   const badge = URGENCY_BADGE[urgency];
 
   const [title, setTitle] = useState(assignment.title);
@@ -134,7 +135,7 @@ export function AssignmentEditRow({ assignment }: Props) {
           <Badge variant={badge.variant}>
             {badge.label}
             {assignment.due_date && urgency !== 'today' && (
-              <span className="ml-1 opacity-75">{formatDate(assignment.due_date)}</span>
+              <span className="ml-1 opacity-75">{formatDate(assignment.due_date, tz)}</span>
             )}
           </Badge>
         </div>

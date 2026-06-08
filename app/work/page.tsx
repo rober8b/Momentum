@@ -1,7 +1,7 @@
-import { asc, desc, sql } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 import { KanbanBoard } from '@/components/work/KanbanBoard';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToWorkblock } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
@@ -9,11 +9,12 @@ export const dynamic = 'force-dynamic';
 const PRIORITY_ORDER = sql`case ${schema.workblocks.priority} when 'high' then 0 when 'med' then 1 when 'low' then 2 else 3 end`;
 
 export default async function WorkPage() {
-  await requireRober();
+  const user = await requireUser();
 
   const rows = await db
     .select()
     .from(schema.workblocks)
+    .where(eq(schema.workblocks.user_id, user.id))
     .orderBy(PRIORITY_ORDER, asc(schema.workblocks.position), desc(schema.workblocks.created_at));
 
   const workblocks = rows.map(rowToWorkblock);
@@ -29,7 +30,7 @@ export default async function WorkPage() {
           {workblocks.length} workblocks totales · {workblocks.filter(w => w.status !== 'done').length} activos
         </p>
       </div>
-      <KanbanBoard workblocks={workblocks} />
+      <KanbanBoard workblocks={workblocks} tz={user.settings.timezone} />
     </div>
   );
 }

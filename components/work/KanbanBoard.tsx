@@ -10,7 +10,7 @@ const COLUMNS: { id: WorkblockStatus; label: string; tone: string }[] = [
   { id: 'done', label: 'done', tone: 'text-success' },
 ];
 
-export function KanbanBoard({ workblocks }: { workblocks: Workblock[] }) {
+export function KanbanBoard({ workblocks, tz = 'UTC' }: { workblocks: Workblock[]; tz?: string }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
       {COLUMNS.map((col) => {
@@ -27,7 +27,7 @@ export function KanbanBoard({ workblocks }: { workblocks: Workblock[] }) {
             </div>
             <div className="space-y-2 min-h-[120px]">
               {items.map((w) => (
-                <BlockCard key={w.id} workblock={w} />
+                <BlockCard key={w.id} workblock={w} tz={tz} />
               ))}
               <BlockForm defaultStatus={col.id} />
             </div>

@@ -5,7 +5,6 @@ import { ClassCard } from './ClassCard';
 import { AssignmentRow } from './AssignmentRow';
 import { TicketCard } from './TicketCard';
 import { BuildPrompt } from './BuildPrompt';
-import { formatFullDate } from '@/lib/date';
 import type { TodayData } from '@/lib/today';
 
 export function TodayDashboard({ data }: { data: TodayData }) {
@@ -18,7 +17,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
             today
           </p>
           <h2 className="text-2xl lg:text-3xl font-semibold capitalize mt-1">
-            {formatFullDate()}
+            {data.formattedDate}
           </h2>
         </div>
         <p className="text-xs text-muted-foreground font-mono">
@@ -67,7 +66,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
                 </p>
                 <div className="space-y-2">
                   {data.assignments.map((a) => (
-                    <AssignmentRow key={a.id} assignment={a} />
+                    <AssignmentRow key={a.id} assignment={a} tz={data.tz} />
                   ))}
                 </div>
               </div>

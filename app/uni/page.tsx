@@ -1,28 +1,29 @@
 import Link from 'next/link';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { ScheduleGrid } from '@/components/uni/ScheduleGrid';
 import { AssignmentRow } from '@/components/today/AssignmentRow';
 import { AssignmentForm } from '@/components/uni/AssignmentForm';
 import { SubjectForm } from '@/components/uni/SubjectForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToSubject, rowToAssignment } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UniPage() {
-  await requireRober();
+  const user = await requireUser();
 
   const [subjectsRows, assignmentsRows] = await Promise.all([
     db
       .select()
       .from(schema.subjects)
-      .where(eq(schema.subjects.active, true))
+      .where(and(eq(schema.subjects.active, true), eq(schema.subjects.user_id, user.id)))
       .orderBy(asc(schema.subjects.name)),
     db
       .select()
       .from(schema.assignments)
+      .where(eq(schema.assignments.user_id, user.id))
       .orderBy(asc(schema.assignments.due_date)),
   ]);
 
@@ -86,7 +87,7 @@ export default async function UniPage() {
           ) : (
             <div className="space-y-2">
               {active.map((a) => (
-                <AssignmentRow key={a.id} assignment={a} />
+                <AssignmentRow key={a.id} assignment={a} tz={user.settings.timezone} />
               ))}
             </div>
           )}
@@ -101,7 +102,7 @@ export default async function UniPage() {
           <CardContent>
             <div className="space-y-2">
               {done.slice(0, 10).map((a) => (
-                <AssignmentRow key={a.id} assignment={a} />
+                <AssignmentRow key={a.id} assignment={a} tz={user.settings.timezone} />
               ))}
             </div>
           </CardContent>

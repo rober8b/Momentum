@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { eq, asc } from 'drizzle-orm';
+import { and, eq, asc } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { AssignmentEditRow } from '@/components/uni/AssignmentEditRow';
 import { ScheduleEditor } from '@/components/uni/ScheduleEditor';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToSubject, rowToAssignment } from '@/lib/today';
 import type { ScheduleSlot } from '@/lib/types';
 
@@ -18,15 +18,15 @@ const DAY_LABELS: Record<string, string> = {
 };
 
 export default async function SubjectPage({ params }: { params: Promise<{ subject: string }> }) {
-  await requireRober();
+  const user = await requireUser();
   const { subject } = await params;
 
   const [subjectRows, assignmentsRows] = await Promise.all([
-    db.select().from(schema.subjects).where(eq(schema.subjects.id, subject)).limit(1),
+    db.select().from(schema.subjects).where(and(eq(schema.subjects.id, subject), eq(schema.subjects.user_id, user.id))).limit(1),
     db
       .select()
       .from(schema.assignments)
-      .where(eq(schema.assignments.subject_id, subject))
+      .where(and(eq(schema.assignments.subject_id, subject), eq(schema.assignments.user_id, user.id)))
       .orderBy(asc(schema.assignments.due_date)),
   ]);
 
@@ -96,7 +96,7 @@ export default async function SubjectPage({ params }: { params: Promise<{ subjec
           ) : (
             <div className="space-y-2">
               {active.map((a) => (
-                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
+                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} tz={user.settings.timezone} />
               ))}
             </div>
           )}
@@ -111,7 +111,7 @@ export default async function SubjectPage({ params }: { params: Promise<{ subjec
           <CardContent>
             <div className="space-y-2">
               {done.map((a) => (
-                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} />
+                <AssignmentEditRow key={a.id} assignment={{ ...a, subjectName: s.name }} tz={user.settings.timezone} />
               ))}
             </div>
           </CardContent>

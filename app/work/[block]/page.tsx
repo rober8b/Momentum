@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToWorkblock } from '@/lib/today';
 import { WorkblockEditForm } from '@/components/work/WorkblockEditForm';
 
@@ -14,13 +14,13 @@ export default async function WorkblockDetailPage({
 }: {
   params: Promise<{ block: string }>;
 }) {
-  await requireRober();
+  const user = await requireUser();
   const { block } = await params;
 
   const rows = await db
     .select()
     .from(schema.workblocks)
-    .where(eq(schema.workblocks.id, block))
+    .where(and(eq(schema.workblocks.id, block), eq(schema.workblocks.user_id, user.id)))
     .limit(1);
 
   if (!rows.length) notFound();
@@ -34,7 +34,7 @@ export default async function WorkblockDetailPage({
       >
         <ArrowLeft size={12} /> kanban
       </Link>
-      <WorkblockEditForm workblock={workblock} />
+      <WorkblockEditForm workblock={workblock} tz={user.settings.timezone} />
     </div>
   );
 }

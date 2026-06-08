@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { eq, asc } from 'drizzle-orm';
+import { and, eq, asc } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -8,7 +8,7 @@ import { TaskForm } from '@/components/freelance/TaskForm';
 import { FreelanceTaskCard } from '@/components/freelance/FreelanceTaskCard';
 import { ClientEditForm } from '@/components/freelance/ClientEditForm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
 import type { FreelanceTaskStatus } from '@/lib/types';
 
@@ -34,12 +34,12 @@ export default async function FreelanceClientPage({
 }: {
   params: Promise<{ client: string }>;
 }) {
-  await requireRober();
+  const user = await requireUser();
   const { client: clientId } = await params;
 
   const [clientRows, taskRows] = await Promise.all([
-    db.select().from(schema.freelanceClients).where(eq(schema.freelanceClients.id, clientId)).limit(1),
-    db.select().from(schema.freelanceTasks).where(eq(schema.freelanceTasks.client_id, clientId)).orderBy(asc(schema.freelanceTasks.created_at)),
+    db.select().from(schema.freelanceClients).where(and(eq(schema.freelanceClients.id, clientId), eq(schema.freelanceClients.user_id, user.id))).limit(1),
+    db.select().from(schema.freelanceTasks).where(and(eq(schema.freelanceTasks.client_id, clientId), eq(schema.freelanceTasks.user_id, user.id))).orderBy(asc(schema.freelanceTasks.created_at)),
   ]);
 
   if (!clientRows.length) notFound();

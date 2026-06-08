@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 import type { BuildStatus } from '@/lib/types';
 
 const buildSchema = z.object({
@@ -31,25 +32,29 @@ function toDate(v: string | null | undefined): Date | null {
 }
 
 export async function quickCaptureIdea(title: string) {
-  await requireRober();
-  await db.insert(schema.buildItems).values({
+  const user = await requireUser();
+  const [row] = await db.insert(schema.buildItems).values({
+    user_id: user.id,
     title: title.slice(0, 200),
     type: 'project',
     status: 'idea',
     platforms: ['x', 'linkedin'],
-  });
+  }).returning({ id: schema.buildItems.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'build_item', entityId: row?.id });
   revalidatePath('/build');
   revalidatePath('/');
 }
 
 export async function createBuildItem(input: z.infer<typeof buildSchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = buildSchema.parse(input);
-  await db.insert(schema.buildItems).values({
+  const [row] = await db.insert(schema.buildItems).values({
     ...parsed,
+    user_id: user.id,
     scheduled_for: toDate(parsed.scheduled_for),
     published_at: toDate(parsed.published_at),
-  });
+  }).returning({ id: schema.buildItems.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'build_item', entityId: row?.id });
   revalidatePath('/build');
   revalidatePath('/');
 }
@@ -60,23 +65,23 @@ export async function updateBuildItem(
   id: string,
   patch: z.infer<typeof updateSchema>,
 ) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = updateSchema.parse(patch);
   const dbPatch: Record<string, unknown> = { ...parsed };
   if ('scheduled_for' in parsed) dbPatch.scheduled_for = toDate(parsed.scheduled_for ?? null);
   if ('published_at' in parsed) dbPatch.published_at = toDate(parsed.published_at ?? null);
-  await db.update(schema.buildItems).set(dbPatch).where(eq(schema.buildItems.id, id));
+  await db.update(schema.buildItems).set(dbPatch).where(and(eq(schema.buildItems.id, id), eq(schema.buildItems.user_id, user.id)));
   revalidatePath('/build');
   revalidatePath('/');
 }
 
 export async function updateBuildStatus(id: string, status: BuildStatus) {
-  await requireRober();
+  const user = await requireUser();
   const patch: { status: BuildStatus; published_at?: Date } = { status };
   if (status === 'published') {
     patch.published_at = new Date();
   }
-  await db.update(schema.buildItems).set(patch).where(eq(schema.buildItems.id, id));
+  await db.update(schema.buildItems).set(patch).where(and(eq(schema.buildItems.id, id), eq(schema.buildItems.user_id, user.id)));
   revalidatePath('/build');
   revalidatePath('/');
 }
@@ -85,7 +90,7 @@ export async function markPublished(
   id: string,
   links: Record<string, string>,
 ) {
-  await requireRober();
+  const user = await requireUser();
   await db
     .update(schema.buildItems)
     .set({
@@ -93,14 +98,15 @@ export async function markPublished(
       published_at: new Date(),
       links,
     })
-    .where(eq(schema.buildItems.id, id));
+    .where(and(eq(schema.buildItems.id, id), eq(schema.buildItems.user_id, user.id)));
   revalidatePath('/build');
   revalidatePath('/');
 }
 
 export async function deleteBuildItem(id: string) {
-  await requireRober();
-  await db.delete(schema.buildItems).where(eq(schema.buildItems.id, id));
+  const user = await requireUser();
+  await db.delete(schema.buildItems).where(and(eq(schema.buildItems.id, id), eq(schema.buildItems.user_id, user.id)));
+  logAudit({ userId: user.id, action: 'delete', entityType: 'build_item', entityId: id });
   revalidatePath('/build');
   revalidatePath('/');
 }

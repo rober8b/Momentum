@@ -19,10 +19,10 @@ const URGENCY_BADGE: Record<
   none: { variant: 'default', label: 'sin fecha' },
 };
 
-export function CommitmentRow({ item }: { item: CommunityItem }) {
+export function CommitmentRow({ item, tz = 'UTC' }: { item: CommunityItem; tz?: string }) {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(item.status === 'done');
-  const urgency = urgencyOf(item.due_date);
+  const urgency = urgencyOf(item.due_date, tz);
   const badge = URGENCY_BADGE[urgency];
 
   function toggle() {
@@ -67,7 +67,7 @@ export function CommitmentRow({ item }: { item: CommunityItem }) {
             <Badge variant={badge.variant}>
               {badge.label}
               {item.due_date && urgency !== 'today' && (
-                <span className="ml-1 opacity-75">{formatDate(item.due_date)}</span>
+                <span className="ml-1 opacity-75">{formatDate(item.due_date, tz)}</span>
               )}
             </Badge>
           )}

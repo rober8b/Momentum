@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 const communitySchema = z.object({
   organization: z.enum(['ai-consensus', 'levellers', 'xplora', 'other']),
@@ -14,32 +15,34 @@ const communitySchema = z.object({
 });
 
 export async function createCommunityItem(input: z.infer<typeof communitySchema>) {
-  await requireRober();
+  const user = await requireUser();
   const parsed = communitySchema.parse(input);
-  await db.insert(schema.communityItems).values({ ...parsed, status: 'pending' });
+  const [row] = await db.insert(schema.communityItems).values({ ...parsed, user_id: user.id, status: 'pending' }).returning({ id: schema.communityItems.id });
+  logAudit({ userId: user.id, action: 'create', entityType: 'community_item', entityId: row?.id });
   revalidatePath('/community');
 }
 
 export async function toggleCommunityDone(id: string, done: boolean) {
-  await requireRober();
+  const user = await requireUser();
   await db
     .update(schema.communityItems)
     .set({ status: done ? 'done' : 'pending' })
-    .where(eq(schema.communityItems.id, id));
+    .where(and(eq(schema.communityItems.id, id), eq(schema.communityItems.user_id, user.id)));
   revalidatePath('/community');
 }
 
 export async function deleteCommunityItem(id: string) {
-  await requireRober();
-  await db.delete(schema.communityItems).where(eq(schema.communityItems.id, id));
+  const user = await requireUser();
+  await db.delete(schema.communityItems).where(and(eq(schema.communityItems.id, id), eq(schema.communityItems.user_id, user.id)));
+  logAudit({ userId: user.id, action: 'delete', entityType: 'community_item', entityId: id });
   revalidatePath('/community');
 }
 
 export async function cancelCommunityItem(id: string) {
-  await requireRober();
+  const user = await requireUser();
   await db
     .update(schema.communityItems)
     .set({ status: 'cancelled' })
-    .where(eq(schema.communityItems.id, id));
+    .where(and(eq(schema.communityItems.id, id), eq(schema.communityItems.user_id, user.id)));
   revalidatePath('/community');
 }

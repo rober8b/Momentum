@@ -13,11 +13,19 @@ export function LoginForm({ next }: { next: string }) {
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="next" value={next} />
       <input
+        type="email"
+        name="email"
+        autoFocus
+        autoComplete="email"
+        placeholder="email"
+        required
+        className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
+      />
+      <input
         type="password"
         name="password"
-        autoFocus
         autoComplete="current-password"
-        placeholder="password"
+        placeholder="contraseña"
         required
         className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
       />
