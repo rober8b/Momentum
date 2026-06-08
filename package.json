@@ -1,7 +1,21 @@
 {
   "name": "command-center",
   "version": "0.1.0",
-  "private": true,
+  "description": "A self-hosted personal operating system for your week",
+  "author": "[Your Name]",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PLACEHOLDER/command-center"
+  },
+  "keywords": [
+    "dashboard",
+    "personal",
+    "self-hosted",
+    "productivity",
+    "obsidian",
+    "nextjs"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
