@@ -19,8 +19,32 @@ const TIMEZONES = [
 export function SignupForm() {
   const [state, formAction, pending] = useActionState(signupAction, initial);
 
+  if (state?.pendingVerification) {
+    return (
+      <div className="text-center space-y-3">
+        <p className="text-sm">cuenta creada.</p>
+        <p className="text-xs text-muted-foreground">
+          revisá tu email para confirmar tu cuenta antes de entrar.
+        </p>
+        <Link href="/login" className="text-xs text-accent hover:underline block mt-4">
+          ir al login →
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <form action={formAction} className="space-y-3">
+      {/* Honeypot — hidden from real users, filled by bots */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ display: 'none' }}
+      />
+
       <input
         type="email"
         name="email"
