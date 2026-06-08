@@ -9,23 +9,15 @@
 
 import postgres from 'postgres';
 import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
-// Simple bcrypt-like password hash for demo (uses sha256 — NOT for prod auth)
-// Real auth uses bcryptjs; this seed script uses a simpler approach to avoid
-// importing the app's auth module from a raw Node script.
 async function hashPassword(password: string): Promise<string> {
-  // bcrypt format that bcryptjs will recognize: use a real hash
-  // We'll insert a known bcrypt hash for 'demo1234'
-  // Generated with: bcryptjs.hashSync('demo1234', 10)
-  // This is intentionally a static hash for the demo password only.
-  const _ = password; // suppress unused warning
-  return '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'; // 'demo1234'
+  return bcrypt.hash(password, 10);
 }
 
 async function clearAll() {

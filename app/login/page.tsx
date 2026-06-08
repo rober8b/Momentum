@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
-import { verifySession } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth';
 import { db, schema } from '@/lib/db';
-import { COOKIE_NAME } from '@/lib/auth';
 import { LoginForm } from './LoginForm';
 
 export const dynamic = 'force-dynamic';
@@ -23,9 +21,8 @@ export default async function LoginPage({
   }
 
   // Already logged in — go to destination
-  const store = await cookies();
-  const signed = store.get(COOKIE_NAME)?.value;
-  if (signed && verifySession(signed)) {
+  const user = await getCurrentUser();
+  if (user) {
     redirect(next && next.startsWith('/') ? next : '/');
   }
 
