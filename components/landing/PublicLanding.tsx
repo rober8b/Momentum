@@ -83,7 +83,7 @@ export function PublicLanding() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <a
-              href="https://github.com/rober8b/-command-center"
+              href="https://github.com/PLACEHOLDER/command-center"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-accent"
@@ -150,13 +150,13 @@ export function PublicLanding() {
             Clone, configure three env vars, push. Done.
           </p>
           <a
-            href="https://github.com/rober8b/-command-center"
+            href="https://github.com/PLACEHOLDER/command-center"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-accent"
           >
             <GitFork size={15} />
-            github.com/rober8b/command-center
+            github.com/PLACEHOLDER/command-center
           </a>
         </section>
       </main>
@@ -168,12 +168,12 @@ export function PublicLanding() {
             command·center — personal OS
           </span>
           <a
-            href="https://roberb.dev"
+            href="https://github.com/PLACEHOLDER/command-center"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground transition-colors hover:text-accent"
           >
-            built by Rober →
+            built with ♥ — MIT license →
           </a>
         </div>
       </footer>
