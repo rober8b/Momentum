@@ -1,144 +1,229 @@
 # command-center
 
-Personal daily dashboard for Rober — 3 pillars: **Universidad** (UCEMA) / **Trabajo** (Aleph) / **Build-in-public** (X + LinkedIn).
+**A self-hosted personal operating system for your week.**
 
-Exports completed items weekly to the Obsidian vault.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/PLACEHOLDER/command-center&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
 
-## Setup
+---
 
-```bash
-# 1. Install deps
-npm install
+## Screenshots
 
-# 2. Provisionar Postgres en Railway
-# https://railway.app → New Project → "Provision PostgreSQL"
-# Copiar el DATABASE_URL desde la pestaña Variables al .env.local
+| Today view | Work kanban | Uni & assignments |
+|------------|-------------|-------------------|
+| ![Today view](docs/screenshots/today.png) | ![Kanban](docs/screenshots/kanban.png) | ![Uni](docs/screenshots/uni.png) |
 
-# 3. Configurar auth (password + cookie firmada — sin servicios externos)
-# Generar un SESSION_SECRET random de 32 bytes hex:
-# Bash:        openssl rand -hex 32
-# PowerShell:  -join ((0..63) | %{ '{0:x}' -f (Get-Random -Max 16) })
-# Setear APP_PASSWORD con la password que vas a usar.
+> Screenshots coming soon. Self-host and see for yourself.
 
-# 4. Configurar .env.local (copiar desde .env.example)
-cp .env.example .env.local
-# editar valores: DATABASE_URL, APP_PASSWORD, SESSION_SECRET
+---
 
-# 5. Aplicar el schema a Railway (dos opciones):
+## What is this?
 
-# OPCIÓN A: drizzle-kit push (recomendado para dev)
-npx drizzle-kit push
+command-center is a personal dashboard with 7 pillars: **Today**, **Uni**, **Work**, **Freelance**, **Projects**, **Community**, and **Build-in-public**. It aggregates your daily context into one view — what classes you have today, what tickets are in progress, which freelance clients need attention, and what build ideas are queued.
 
-# OPCIÓN B: correr la migración generada (mejor para prod)
-# Conectarse al Postgres de Railway (psql o el SQL editor) y correr:
-# - drizzle/0000_initial.sql
+It is designed to be self-hosted. There is no cloud service, no subscription, no vendor lock-in. You own your data — it lives in a Postgres database you control. Deploy takes about 15 minutes with Vercel + Railway.
 
-# 6. Seed inicial — las 5 materias UCEMA
-# Correr drizzle/seed.sql contra la DB (psql o Railway SQL editor)
+---
 
-# 7. Dev
-npm run dev
-# → http://localhost:3000 → te redirige a /login → ingresá APP_PASSWORD
-```
+## Features
 
-## Comandos Drizzle
+- **Today** — Daily operating view aggregating items from all pillars: classes, assignments due soon, active workblocks, build queue, and community commitments.
+- **Uni** — Subject management with weekly schedule grid, assignment tracking, due-date urgency badges, and optional notes/vault path.
+- **Work** — Kanban board with 5 columns (backlog → today → in-progress → blocked → done), priority ordering, and optional client tagging.
+- **Freelance** — Client roster with per-client task lists, status tracking, stack notes, next steps, and GitHub last-push integration.
+- **Projects** — Own side projects tracked independently from client work — status, links, last update.
+- **Community** — Commitments and events organized by organization, with due-date urgency and done/cancelled tracking.
+- **Build** — Build-in-public pipeline: ideas → drafts → published. Hook + body editor with platform targeting (X, LinkedIn).
+- **Multi-user** — Row-level data isolation by `user_id`. First user becomes admin via setup wizard.
+- **Weekly export** — Completed items serialized to Markdown and downloadable for import into any note-taking system.
+- **Auth** — Password + HMAC-signed cookie. No external auth services. Optional email verification via Resend.
 
-```bash
-npx drizzle-kit push        # Sincroniza schema con la DB (dev)
-npx drizzle-kit generate    # Crea un .sql nuevo si cambió el schema (prod)
-npx drizzle-kit studio      # GUI web para explorar la DB
-```
-
-## Verificación
-
-Antes de declarar el MVP listo:
-
-1. ✅ Login con Clerk desde una pestaña incógnito → ve la Today view
-2. ✅ Crear clase en /uni con horario lunes 18:00. Crear assignment "TP1 Fintech" due en 3 días
-3. ✅ Crear workblock en /work: "Onboarding Aleph - setup laptop", status `today`, priority `high`
-4. ✅ Capturar idea de build desde Today: "Demo Catalog Crew para Twitter"
-5. ✅ Volver a / (Today): los 3 items aparecen en sus secciones correctas
-6. ✅ Marcar el workblock como done desde Today
-7. ✅ Mover la idea a draft, escribir hook + cuerpo, mark as published con link
-8. ✅ Disparar `/api/export` manualmente: verificar que devuelve JSON con `files` poblado
-9. ✅ Probar mobile (iOS Safari): Today view usable con un solo pulgar
-
-```bash
-npm run typecheck  # 0 errors
-npm run build      # 0 errors, 0 warnings de TS strict
-```
-
-## Deploy
-
-```bash
-# 1. Push a GitHub
-git init
-git add -A
-git commit -m "feat: command-center MVP"
-git remote add origin git@github.com:bd-rober/command-center.git
-git push -u origin main
-
-# 2. Vercel
-# vercel.com/new → import repo → configurar env vars (mismo .env.local)
-# DATABASE_URL → la misma de Railway (Railway expone una URL pública por proyecto)
-# Custom domain: configurar en Vercel → Settings → Domains
-```
-
-Cron de export semanal: ya configurado en `vercel.json` (domingos 22:00 UTC).
-
-## Email setup (opcional)
-
-El envío de emails se usa para:
-- Confirmación de cuenta (`REQUIRE_EMAIL_CONFIRMATION=true`)
-- Reset de contraseña (`/forgot-password`)
-
-### Sin credenciales (log-mode)
-
-Si no seteás `RESEND_API_KEY`, la app entra en **log-mode**: los links se imprimen en la consola del servidor en vez de enviarse. Útil para desarrollo local.
-
-```
-[email:log-mode] to=user@example.com subject="resetear contraseña — command center"
-[email:log-mode] link: http://localhost:3000/reset-password/abc123...
-```
-
-### Con Resend (producción)
-
-1. Crear cuenta en [resend.com](https://resend.com)
-2. Verificar un dominio tuyo (ej: `yourdomain.com`) — Resend te da los registros DNS a agregar
-3. Setear las variables en `.env.local` y en Vercel:
-
-```env
-RESEND_API_KEY=re_...
-EMAIL_FROM=noreply@yourdomain.com
-```
-
-> ⚠️ `EMAIL_FROM` debe ser una dirección de un dominio verificado en tu cuenta de Resend.
-> **No uses el dominio del autor del repo** — no tenés permiso para enviar desde él.
-
-### Confirmación de email obligatoria
-
-Si activás `REQUIRE_EMAIL_CONFIRMATION=true`, `EMAIL_FROM` es **requerido** — la app falla al arrancar si no está seteado.
-
-```env
-REQUIRE_EMAIL_CONFIRMATION=true
-EMAIL_FROM=noreply@yourdomain.com   # obligatorio cuando lo anterior es true
-```
+---
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Framework | Next.js 16.2.6 + React 19.2.4 (App Router) |
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16.2 + React 19 (App Router, Server Components) |
+| Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS v4 |
-| DB | **Railway Postgres** |
-| ORM | **Drizzle ORM** (type-safe, schema-driven) |
-| Auth | Password + cookie HMAC-firmada (single-user, sin servicios externos) |
-| Deploy | Vercel |
+| UI primitives | `@base-ui/react` + custom components |
+| Animations | `motion` v12 |
+| Database | PostgreSQL 14+ |
+| ORM | Drizzle ORM (type-safe, schema-driven) |
+| Auth | HMAC-signed cookie (node:crypto, no external service) |
+| Email | Resend (optional; log-mode without API key) |
+| Deploy | Vercel (serverless) + Railway (managed Postgres) |
 
-## Notas
+---
 
-- ⚠️ Next.js 16 tiene breaking changes vs 14/15. Ver `AGENTS.md`. Usar `proxy.ts` (no `middleware.ts`).
-- Single-user: `APP_PASSWORD` + `SESSION_SECRET` en `.env.local`. La verificación vive en `lib/auth.ts` (node:crypto) + `proxy.ts` (Web Crypto para Edge).
-- Export semanal: V1 devuelve JSON con los archivos. V2 (opcional): subir a GitHub repo del vault via API.
-- Schema: ver `lib/db/schema.ts` (Drizzle). Migraciones generadas: `drizzle/`. Seed: `drizzle/seed.sql`.
-- Plan original: `~/.claude/plans/tengo-menos-de-1k-effervescent-pizza.md`.
+## Quick start (self-host)
+
+### Prerequisites
+
+- Node.js 20+
+- A PostgreSQL 14+ database ([Railway](https://railway.app) recommended — free tier available)
+- A [Vercel](https://vercel.com) account for deployment
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/PLACEHOLDER/command-center.git
+cd command-center
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up the database
+
+Provision a Postgres database on [Railway](https://railway.app):
+
+1. New Project → **Provision PostgreSQL**
+2. Open the service → **Settings** → **Variables** → copy `DATABASE_URL`
+
+### 4. Configure environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Open `.env.local` and fill in at minimum:
+
+```env
+DATABASE_URL=postgres://...        # from Railway
+SESSION_SECRET=<32-char hex>       # openssl rand -hex 32
+```
+
+See [`.env.example`](.env.example) for all variables with descriptions.
+
+### 5. Run migrations
+
+```bash
+npx drizzle-kit push
+```
+
+### 6. (Optional) Seed demo data
+
+```bash
+npm run db:seed:demo
+# Creates demo@example.com / demo1234 with sample data across all pillars
+```
+
+### 7. Run locally
+
+```bash
+npm run dev
+# → http://localhost:3000
+```
+
+On first run with no users, you'll be redirected to `/setup` to create the admin account.
+
+### 8. Deploy to Vercel
+
+Click the button at the top of this README, or:
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+```
+
+Set the same env vars in **Vercel → Project → Settings → Environment Variables**.
+
+---
+
+## Deployment
+
+### One-click Vercel deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/PLACEHOLDER/command-center&env=DATABASE_URL,SESSION_SECRET&envDescription=See%20.env.example%20for%20all%20required%20variables)
+
+### Database (Railway)
+
+1. [railway.app](https://railway.app) → New Project → Provision PostgreSQL
+2. Enable the **Public Network** in Settings → Networking (needed for Vercel to connect)
+3. Copy `DATABASE_URL` from Settings → Variables
+
+### First-run setup
+
+After deploying, visit `https://your-app.vercel.app/setup`. This creates the first admin account. `/setup` is only accessible when no users exist in the database.
+
+### Weekly export cron
+
+The export cron is configured in `vercel.json` (Sundays 22:00 UTC). Set `CRON_SECRET` in Vercel env vars to protect the `/api/export` endpoint.
+
+---
+
+## Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `SESSION_SECRET` | ✅ | 32+ char secret for signing session cookies |
+| `NEXT_PUBLIC_SITE_URL` | optional | Base URL for email links (default: `http://localhost:3000`) |
+| `ALLOW_SIGNUP` | optional | Enable `/signup` page (default: `false`) |
+| `REQUIRE_EMAIL_CONFIRMATION` | optional | Require email verification (default: `false`) |
+| `RESEND_API_KEY` | optional* | Resend API key for transactional email |
+| `EMAIL_FROM` | optional* | From address (must be on a verified Resend domain) |
+| `CRON_SECRET` | optional | Bearer token for Vercel cron auth |
+| `GITHUB_TOKEN` | optional | PAT for GitHub last-push integration |
+
+*Required when `REQUIRE_EMAIL_CONFIRMATION=true`.
+
+Without `RESEND_API_KEY`, email content is logged to the server console (useful for local dev).
+
+---
+
+## Architecture
+
+**Server Components + Server Actions.** All data fetching happens in React Server Components (`page.tsx` files). Mutations go through Next.js Server Actions (`actions.ts` files) — no API routes for app data (exception: `/api/export` for the Vercel cron). This keeps the client bundle small and avoids a separate API layer.
+
+**Drizzle ORM with a singleton client.** The Postgres connection is a singleton in `lib/db/index.ts`, which prevents connection storms during Next.js hot reloads in development. Schema is the single source of truth in `lib/db/schema.ts` — types in `lib/types.ts` mirror it.
+
+**HMAC cookie auth with no external dependencies.** Sessions are signed cookies (`cc_session`) using `node:crypto` HMAC-SHA256. The session token contains the user ID and issued-at timestamp. The Edge-compatible `proxy.ts` (Next.js 16's `middleware.ts` replacement) verifies the cookie on every request using Web Crypto. Server Components and Actions call `requireUser()` for a second verification. Per-user session invalidation is supported via `invalidate_sessions_before` in the users table.
+
+**Multi-user with row-level filtering.** Every table has a `user_id` foreign key. All queries filter by `eq(schema.X.user_id, user.id)`. There is no shared data between users. The first user registered gets the `admin` role; subsequent users get `member`.
+
+**Weekly Markdown export.** `lib/vault-export.ts` serializes completed items from the past week into Markdown files with YAML frontmatter. The output can be imported into any Markdown-based note system (Obsidian, Logseq, etc.). The export is triggered by a Vercel cron job or manually from the sidebar.
+
+---
+
+## Roadmap
+
+- [ ] 2FA (TOTP)
+- [ ] OAuth (Google, GitHub)
+- [ ] Mobile app (React Native)
+- [ ] Public API (REST + OpenAPI spec)
+- [ ] Webhooks for external integrations
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening one.
+
+---
+
+## Security
+
+Found a vulnerability? Please **do not open a public issue**. See [SECURITY.md](SECURITY.md) for responsible disclosure instructions.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Acknowledgments
+
+Built with Next.js, Drizzle ORM, Tailwind CSS, and a deep appreciation for tools that stay out of your way.
