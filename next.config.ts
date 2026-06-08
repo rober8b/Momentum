@@ -22,9 +22,17 @@ if (process.env.REQUIRE_EMAIL_CONFIRMATION === 'true' && !process.env.EMAIL_FROM
 //  - data: in img-src allows base64 images used by UI components.
 //  - https: in img-src allows external profile pictures / og images.
 //
+const isDev = process.env.NODE_ENV === 'development';
+
+// 'unsafe-eval' is needed by React in dev mode for stack traces / HMR.
+// Never included in production builds.
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",    // Next.js hydration + motion v12
+  scriptSrc,                               // Next.js hydration + motion v12
   "style-src 'self' 'unsafe-inline'",     // Tailwind v4 runtime
   "img-src 'self' data: https:",
   "font-src 'self'",
