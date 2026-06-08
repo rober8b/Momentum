@@ -188,7 +188,7 @@ Without `RESEND_API_KEY`, email content is logged to the server console (useful 
 
 **Drizzle ORM with a singleton client.** The Postgres connection is a singleton in `lib/db/index.ts`, which prevents connection storms during Next.js hot reloads in development. Schema is the single source of truth in `lib/db/schema.ts` — types in `lib/types.ts` mirror it.
 
-**HMAC cookie auth with no external dependencies.** Sessions are signed cookies (`cc_session`) using `node:crypto` HMAC-SHA256. The session token contains the user ID and issued-at timestamp. The Edge-compatible `proxy.ts` (Next.js 16's `middleware.ts` replacement) verifies the cookie on every request using Web Crypto. Server Components and Actions call `requireUser()` for a second verification. Per-user session invalidation is supported via `invalidate_sessions_before` in the users table.
+**HMAC cookie auth with no external dependencies.** Sessions are signed cookies (`momentum_session`) using `node:crypto` HMAC-SHA256. The session token contains the user ID and issued-at timestamp. The Edge-compatible `proxy.ts` (Next.js 16's `middleware.ts` replacement) verifies the cookie on every request using Web Crypto. Server Components and Actions call `requireUser()` for a second verification. Per-user session invalidation is supported via `invalidate_sessions_before` in the users table.
 
 **Multi-user with row-level filtering.** Every table has a `user_id` foreign key. All queries filter by `eq(schema.X.user_id, user.id)`. There is no shared data between users. The first user registered gets the `admin` role; subsequent users get `member`.
 

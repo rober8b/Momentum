@@ -1,4 +1,4 @@
-# MIGRATION_PLAN.md — command-center: de personal tool a self-hostable multi-user
+# MIGRATION_PLAN.md — momentum: de personal tool a self-hostable multi-user
 
 > **Scope:** Convertir la app single-user (HMAC cookie + APP_PASSWORD) en una app
 > open-source self-hostable que soporte múltiples usuarios en una instancia.
@@ -724,7 +724,7 @@ vault paths. El refactor limpia eso.
    no en el código actual. Cualquiera que clone el repo ve el código de `main`, no el historial.
 
 **Si querés historial 100% limpio:**
-- Crear repo público vacío `github.com/<user>/command-center`
+- Crear repo público vacío `github.com/<user>/Momentum`
 - Pushear solo la branch `feat/public-release` como `main` del repo público
 - El repo público nace sin historial previo
 

@@ -1,4 +1,4 @@
-# CLAUDE.md — command-center
+# CLAUDE.md — momentum
 
 Personal daily dashboard de Rober. Single-user. 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's workspace\`); exporta items completados semanalmente.
 
@@ -334,8 +334,8 @@ openssl rand -hex 32
 
 # 2. GitHub
 git init && git add -A
-git commit -m "feat: command-center MVP"
-git remote add origin git@github.com:bd-rober/command-center.git
+git commit -m "feat: momentum MVP"
+git remote add origin git@github.com:rober8b/Momentum.git
 git push -u origin main
 
 # 3. Vercel
