@@ -4,7 +4,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
-const COOKIE_NAME = 'cc_session';
+const COOKIE_NAME = 'momentum_session';
 
 const PUBLIC_PATHS = ['/', '/login', '/setup', '/forgot-password', '/reset-password', '/verify-email'];
 const CRON_PATHS = ['/api/export'];

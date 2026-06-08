@@ -15,7 +15,7 @@ import { db, schema } from '@/lib/db';
 import type { User, UserSettings } from '@/lib/types';
 import { DEFAULT_USER_SETTINGS } from '@/lib/types';
 
-export const COOKIE_NAME = 'cc_session';
+export const COOKIE_NAME = 'momentum_session';
 const MAX_AGE_DAYS = 30;
 export const BCRYPT_ROUNDS = 12;
 
