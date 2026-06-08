@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal } from 'lucide-react';
+import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal, Settings } from 'lucide-react';
 import { ExportButton } from './ExportButton';
 import { SearchBar } from './search/SearchBar';
 import { cn } from '@/lib/cn';
@@ -82,7 +82,17 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
               <LogOut size={12} />
               salir
             </a>
-            <span className="text-xs text-muted-foreground font-mono">v0.1</span>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/settings/api-tokens"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title="API Tokens"
+              >
+                <Settings size={12} />
+                api
+              </Link>
+              <span className="text-xs text-muted-foreground font-mono">v0.1</span>
+            </div>
           </div>
           <ExportButton />
         </div>
