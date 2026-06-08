@@ -1,7 +1,7 @@
 import 'server-only';
 import { db, schema } from '@/lib/db';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout';
+export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'signup';
 
 export interface LogAuditParams {
   userId: string | null;
