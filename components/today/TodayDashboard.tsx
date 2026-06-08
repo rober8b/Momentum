@@ -176,7 +176,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
                     <div key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-elev p-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium leading-tight truncate">{c.title}</p>
-                        <span className="text-[10px] text-muted-foreground">{c.organization}</span>
+                        {c.organization_name && <span className="text-[10px] text-muted-foreground">{c.organization_name}</span>}
                       </div>
                       {c.due_date && (
                         <span className="text-[10px] text-warning shrink-0">{c.due_date}</span>

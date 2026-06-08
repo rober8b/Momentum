@@ -26,7 +26,6 @@ import type {
   FreelanceClientStatus,
   FreelanceTaskStatus,
   ProjectStatus,
-  CommunityOrg,
   CommunityStatus,
 } from '@/lib/types';
 
@@ -262,6 +261,20 @@ export const ownProjects = pgTable(
   (t) => [index('own_projects_user_status_idx').on(t.user_id, t.status)],
 );
 
+// ---------- ORGANIZACIONES ----------
+
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('organizations_user_idx').on(t.user_id)],
+);
+
 // ---------- COMUNIDAD ----------
 
 export const communityItems = pgTable(
@@ -269,7 +282,7 @@ export const communityItems = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-    organization: text('organization').$type<CommunityOrg>().notNull(),
+    organization_id: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
     title: text('title').notNull(),
     description: text('description'),
     status: text('status').$type<CommunityStatus>().default('pending').notNull(),
@@ -297,5 +310,7 @@ export type FreelanceTaskRow = typeof freelanceTasks.$inferSelect;
 export type FreelanceTaskInsert = typeof freelanceTasks.$inferInsert;
 export type OwnProjectRow = typeof ownProjects.$inferSelect;
 export type OwnProjectInsert = typeof ownProjects.$inferInsert;
+export type OrganizationRow = typeof organizations.$inferSelect;
+export type OrganizationInsert = typeof organizations.$inferInsert;
 export type CommunityItemRow = typeof communityItems.$inferSelect;
 export type CommunityItemInsert = typeof communityItems.$inferInsert;

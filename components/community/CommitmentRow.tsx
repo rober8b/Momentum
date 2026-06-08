@@ -62,7 +62,7 @@ export function CommitmentRow({ item, tz = 'UTC' }: { item: CommunityItem; tz?: 
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
         )}
         <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-          <Badge variant="muted">{item.organization}</Badge>
+          {item.organization_name && <Badge variant="muted">{item.organization_name}</Badge>}
           {!done && (
             <Badge variant={badge.variant}>
               {badge.label}
