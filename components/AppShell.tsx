@@ -36,8 +36,7 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
       <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-surface">
         <div className="px-6 py-6">
           <Link href="/" className="block">
-            <span className="font-mono text-sm text-muted-foreground">command</span>
-            <h1 className="font-sans text-lg font-semibold">center</h1>
+            <h1 className="font-sans text-lg font-semibold">momentum</h1>
           </Link>
         </div>
 
@@ -92,7 +91,7 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
       {/* Mobile top bar */}
       <div className="lg:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-border bg-surface px-4 py-3">
         <Link href="/" className="font-semibold">
-          command·center
+          momentum
         </Link>
         <a
           href="/logout"

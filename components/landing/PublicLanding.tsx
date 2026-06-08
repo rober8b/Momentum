@@ -56,8 +56,7 @@ export function PublicLanding() {
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div>
-            <span className="font-mono text-xs text-muted-foreground">command</span>
-            <span className="font-sans text-sm font-semibold">&nbsp;center</span>
+            <span className="font-sans text-sm font-semibold">momentum</span>
           </div>
           <Link
             href="/login"
@@ -75,15 +74,14 @@ export function PublicLanding() {
             open source
           </p>
           <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
-            command center
+            momentum
           </h1>
           <p className="mx-auto mb-10 max-w-xl text-lg text-muted-foreground">
-            Your personal operating system. One dashboard for university, work,
-            freelance, projects, community, and build-in-public.
+            The organization platform for builders.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <a
-              href="https://github.com/rober8b/-command-center"
+              href="https://github.com/rober8b/Momentum"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-accent"
@@ -150,13 +148,13 @@ export function PublicLanding() {
             Clone, configure three env vars, push. Done.
           </p>
           <a
-            href="https://github.com/rober8b/-command-center"
+            href="https://github.com/rober8b/Momentum"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-accent"
           >
             <GitFork size={15} />
-            github.com/rober8b/command-center
+            github.com/rober8b/Momentum
           </a>
         </section>
       </main>
@@ -165,15 +163,15 @@ export function PublicLanding() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-6 py-6 sm:flex-row">
           <span className="font-mono text-xs text-muted-foreground">
-            command·center — personal OS
+            momentum
           </span>
           <a
-            href="https://roberb.dev"
+            href="https://github.com/rober8b/Momentum"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground transition-colors hover:text-accent"
           >
-            built by Rober →
+            built with ♥ — MIT license →
           </a>
         </div>
       </footer>

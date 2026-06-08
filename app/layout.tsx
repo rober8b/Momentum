@@ -6,8 +6,8 @@ import { ToastProvider } from '@/components/ui/ToastProvider';
 import { getCurrentUser } from '@/lib/auth';
 
 export const metadata: Metadata = {
-  title: 'command center',
-  description: 'Personal daily dashboard',
+  title: 'momentum',
+  description: 'The organization platform for builders',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

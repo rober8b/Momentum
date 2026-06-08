@@ -35,7 +35,7 @@ export async function sendPasswordResetEmail(params: {
   const name = params.displayName ?? params.to;
   await send({
     to: params.to,
-    subject: 'resetear contraseña — command center',
+    subject: 'resetear contraseña — momentum',
     html: `
       <p>Hola ${name},</p>
       <p>Recibimos una solicitud para resetear tu contraseña.</p>
@@ -53,7 +53,7 @@ export async function sendEmailConfirmation(params: {
   const name = params.displayName || params.to;
   await send({
     to: params.to,
-    subject: 'confirmá tu cuenta — command center',
+    subject: 'confirmá tu cuenta — momentum',
     html: `
       <p>Hola ${name},</p>
       <p>Gracias por registrarte. Confirmá tu cuenta haciendo click en el link:</p>
