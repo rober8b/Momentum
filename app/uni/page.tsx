@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { and, asc, desc, eq } from 'drizzle-orm';
+import { GraduationCap } from 'lucide-react';
 import { ScheduleGrid } from '@/components/uni/ScheduleGrid';
 import { AssignmentRow } from '@/components/today/AssignmentRow';
 import { AssignmentForm } from '@/components/uni/AssignmentForm';
@@ -53,6 +54,17 @@ export default async function UniPage() {
         </div>
       </div>
 
+      {subjects.length === 0 && (
+        <div className="py-16 text-center">
+          <GraduationCap size={40} className="mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">no hay materias cargadas</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            agregá tu primera materia para ver el horario semanal y trackear TPs.
+          </p>
+        </div>
+      )}
+
+      {subjects.length > 0 && (<>
       <Card className="mb-6">
         <CardHeader><CardTitle>semana</CardTitle></CardHeader>
         <CardContent>
@@ -108,6 +120,7 @@ export default async function UniPage() {
           </CardContent>
         </Card>
       )}
+      </>)}
     </div>
   );
 }

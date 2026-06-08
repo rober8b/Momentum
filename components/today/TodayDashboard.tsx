@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, GraduationCap, Briefcase, Megaphone, FolderKanban, Users } from 'lucide-react';
+import { ArrowRight, GraduationCap, Briefcase, Megaphone, FolderKanban, Users, Sparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ClassCard } from './ClassCard';
 import { AssignmentRow } from './AssignmentRow';
@@ -8,6 +8,8 @@ import { BuildPrompt } from './BuildPrompt';
 import type { TodayData } from '@/lib/today';
 
 export function TodayDashboard({ data }: { data: TodayData }) {
+  const totalItems = data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length + data.freelanceTasks.length + data.communityItems.length;
+
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-7xl">
       {/* Header */}
@@ -21,9 +23,19 @@ export function TodayDashboard({ data }: { data: TodayData }) {
           </h2>
         </div>
         <p className="text-xs text-muted-foreground font-mono">
-          {data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length + data.freelanceTasks.length + data.communityItems.length} items pendientes
+          {totalItems} items pendientes
         </p>
       </div>
+
+      {totalItems === 0 && (
+        <div className="py-16 text-center mb-8">
+          <Sparkles size={40} className="mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">todo en orden</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+            no hay nada pendiente para hoy. usá los pilares del sidebar para cargar tareas, materias, clientes o ideas.
+          </p>
+        </div>
+      )}
 
       {/* 3-column dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">

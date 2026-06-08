@@ -1,4 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
+import { FolderOpen } from 'lucide-react';
 import { ClientCard } from '@/components/freelance/ClientCard';
 import { ClientForm } from '@/components/freelance/ClientForm';
 import { db, schema } from '@/lib/db';
@@ -44,9 +45,13 @@ export default async function FreelancePage() {
       </div>
 
       {active.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-10 text-center">
-          no hay clientes activos. agregá uno con el botón de arriba.
-        </p>
+        <div className="py-16 text-center">
+          <FolderOpen size={40} className="mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">no hay clientes todavía</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            agregá tu primer cliente para empezar a trackear tareas y estado de proyectos.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {active.map((c) => (
