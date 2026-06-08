@@ -6,14 +6,20 @@ async function send(params: {
   html: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? 'command-center <noreply@roberb.dev>';
+  const from = process.env.EMAIL_FROM;
 
   if (!apiKey) {
     console.log(`[email:log-mode] to=${params.to} subject="${params.subject}"`);
-    // Extract the first href from html for convenience in log-mode
     const match = params.html.match(/href="([^"]+)"/);
     if (match) console.log(`[email:log-mode] link: ${match[1]}`);
     return;
+  }
+
+  if (!from) {
+    throw new Error(
+      'EMAIL_FROM env var is required when RESEND_API_KEY is set. ' +
+      'Set it to an email address from a domain you control (e.g., noreply@yourdomain.com).',
+    );
   }
 
   const { Resend } = await import('resend');

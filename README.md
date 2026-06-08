@@ -81,10 +81,48 @@ git push -u origin main
 # 2. Vercel
 # vercel.com/new → import repo → configurar env vars (mismo .env.local)
 # DATABASE_URL → la misma de Railway (Railway expone una URL pública por proyecto)
-# Custom domain sugerido: cc.roberb.dev
+# Custom domain: configurar en Vercel → Settings → Domains
 ```
 
 Cron de export semanal: ya configurado en `vercel.json` (domingos 22:00 UTC).
+
+## Email setup (opcional)
+
+El envío de emails se usa para:
+- Confirmación de cuenta (`REQUIRE_EMAIL_CONFIRMATION=true`)
+- Reset de contraseña (`/forgot-password`)
+
+### Sin credenciales (log-mode)
+
+Si no seteás `RESEND_API_KEY`, la app entra en **log-mode**: los links se imprimen en la consola del servidor en vez de enviarse. Útil para desarrollo local.
+
+```
+[email:log-mode] to=user@example.com subject="resetear contraseña — command center"
+[email:log-mode] link: http://localhost:3000/reset-password/abc123...
+```
+
+### Con Resend (producción)
+
+1. Crear cuenta en [resend.com](https://resend.com)
+2. Verificar un dominio tuyo (ej: `yourdomain.com`) — Resend te da los registros DNS a agregar
+3. Setear las variables en `.env.local` y en Vercel:
+
+```env
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@yourdomain.com
+```
+
+> ⚠️ `EMAIL_FROM` debe ser una dirección de un dominio verificado en tu cuenta de Resend.
+> **No uses el dominio del autor del repo** — no tenés permiso para enviar desde él.
+
+### Confirmación de email obligatoria
+
+Si activás `REQUIRE_EMAIL_CONFIRMATION=true`, `EMAIL_FROM` es **requerido** — la app falla al arrancar si no está seteado.
+
+```env
+REQUIRE_EMAIL_CONFIRMATION=true
+EMAIL_FROM=noreply@yourdomain.com   # obligatorio cuando lo anterior es true
+```
 
 ## Stack
 

@@ -2,7 +2,7 @@
 
 Personal daily dashboard de Rober. Single-user. 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's workspace\`); exporta items completados semanalmente.
 
-- **Live URL planeada:** `cc.roberb.dev` (subdominio de roberb.dev)
+- **Live URL:** configurar dominio custom en Vercel → Settings → Domains
 - **Plan original:** `C:\Users\rober\.claude\plans\tengo-menos-de-1k-effervescent-pizza.md`
 - **Empezó:** 2026-06-03
 
@@ -343,8 +343,7 @@ git push -u origin main
 # DATABASE_URL → la URL pública del Postgres de Railway (settings → networking → enable public)
 
 # 4. Custom domain
-# Vercel → settings → domains → cc.roberb.dev
-# Configurar CNAME en el DNS de roberb.dev
+# Vercel → settings → domains → agregar tu dominio y configurar CNAME en tu DNS
 
 # 5. Verificar cron
 # Vercel dashboard → settings → Crons → debería aparecer /api/export con schedule 0 22 * * 0
