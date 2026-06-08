@@ -11,7 +11,8 @@ const setupSchema = z.object({
   email: z.string().email(),
   display_name: z.string().min(1).max(64),
   password: z.string().min(8),
-  timezone: z.string().min(1).default('America/Argentina/Buenos_Aires'),
+  timezone: z.string().min(1).default('UTC'),
+  language: z.enum(['en', 'es']).default('en'),
 });
 
 export type SetupState = { error?: string };
@@ -27,7 +28,8 @@ export async function setupAction(_prev: SetupState, formData: FormData): Promis
     email: String(formData.get('email') ?? '').toLowerCase().trim(),
     display_name: String(formData.get('display_name') ?? '').trim(),
     password: String(formData.get('password') ?? ''),
-    timezone: String(formData.get('timezone') ?? 'America/Argentina/Buenos_Aires'),
+    timezone: String(formData.get('timezone') ?? 'UTC'),
+    language: String(formData.get('language') ?? 'en'),
   };
 
   const parsed = setupSchema.safeParse(raw);
@@ -36,7 +38,7 @@ export async function setupAction(_prev: SetupState, formData: FormData): Promis
   }
 
   const password_hash = await hashPassword(parsed.data.password);
-  const settings = { ...DEFAULT_USER_SETTINGS, timezone: parsed.data.timezone, language: 'es' as const, export_enabled: true };
+  const settings = { ...DEFAULT_USER_SETTINGS, timezone: parsed.data.timezone, language: parsed.data.language, export_enabled: true };
 
   const [user] = await db
     .insert(schema.users)
