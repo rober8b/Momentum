@@ -52,7 +52,7 @@ export default async function SubjectPage({ params }: { params: Promise<{ subjec
         <h1 className="text-2xl lg:text-3xl font-semibold mt-2">{s.name}</h1>
         {s.vault_slug && (
           <p className="text-xs text-muted-foreground mt-2 font-mono">
-            vault: 20-studies/ucema/{s.vault_slug}.md
+            vault: studies/{s.vault_slug}
           </p>
         )}
       </div>

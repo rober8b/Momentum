@@ -25,7 +25,7 @@ export function BlockForm({ defaultStatus = 'backlog' }: { defaultStatus?: Workb
         priority,
         type,
         status: defaultStatus,
-        client: 'aleph',
+        client: '',
         links: {},
       });
       setTitle('');

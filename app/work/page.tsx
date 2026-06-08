@@ -23,7 +23,7 @@ export default async function WorkPage() {
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1600px]">
       <div className="mb-6 lg:mb-8">
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-          work · aleph
+          work
         </p>
         <h2 className="text-2xl lg:text-3xl font-semibold mt-1">kanban</h2>
         <p className="text-xs text-muted-foreground mt-1">

@@ -53,7 +53,7 @@ export async function searchAll(query: string): Promise<SearchResult[]> {
         .where(and(eq(schema.ownProjects.user_id, uid), ilike(schema.ownProjects.name, pattern)))
         .limit(3),
       db
-        .select({ id: schema.communityItems.id, title: schema.communityItems.title, organization: schema.communityItems.organization })
+        .select({ id: schema.communityItems.id, title: schema.communityItems.title, organization_id: schema.communityItems.organization_id })
         .from(schema.communityItems)
         .where(and(eq(schema.communityItems.user_id, uid), ilike(schema.communityItems.title, pattern)))
         .limit(3),
@@ -107,7 +107,7 @@ export async function searchAll(query: string): Promise<SearchResult[]> {
       title: c.title,
       type: 'community' as const,
       href: '/community',
-      meta: c.organization,
+      meta: 'community',
     })),
   ];
 

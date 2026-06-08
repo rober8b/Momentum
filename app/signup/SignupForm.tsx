@@ -8,12 +8,26 @@ import { signupAction, type SignupState } from './actions';
 const initial: SignupState = {};
 
 const TIMEZONES = [
-  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (UTC-3)' },
-  { value: 'America/Sao_Paulo', label: 'São Paulo (UTC-3)' },
-  { value: 'America/New_York', label: 'New York (UTC-5)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8)' },
-  { value: 'Europe/Madrid', label: 'Madrid (UTC+1)' },
   { value: 'UTC', label: 'UTC' },
+  { value: 'America/New_York', label: 'New York (UTC-5)' },
+  { value: 'America/Chicago', label: 'Chicago (UTC-6)' },
+  { value: 'America/Denver', label: 'Denver (UTC-7)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8)' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo (UTC-3)' },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (UTC-3)' },
+  { value: 'America/Bogota', label: 'Bogotá (UTC-5)' },
+  { value: 'America/Mexico_City', label: 'Ciudad de México (UTC-6)' },
+  { value: 'America/Santiago', label: 'Santiago (UTC-4)' },
+  { value: 'Europe/London', label: 'London (UTC+0)' },
+  { value: 'Europe/Madrid', label: 'Madrid (UTC+1)' },
+  { value: 'Europe/Berlin', label: 'Berlin (UTC+1)' },
+  { value: 'Europe/Paris', label: 'Paris (UTC+1)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (UTC+8)' },
+  { value: 'Asia/Kolkata', label: 'Kolkata (UTC+5:30)' },
+  { value: 'Asia/Dubai', label: 'Dubai (UTC+4)' },
+  { value: 'Australia/Sydney', label: 'Sydney (UTC+10)' },
+  { value: 'Pacific/Auckland', label: 'Auckland (UTC+12)' },
 ];
 
 export function SignupForm() {

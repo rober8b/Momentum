@@ -1,4 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
+import { Rocket } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { db, schema } from '@/lib/db';
@@ -44,9 +45,13 @@ export default async function ProjectsPage() {
       </div>
 
       {active.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-10 text-center">
-          no hay proyectos. agregá uno con el botón de arriba.
-        </p>
+        <div className="py-16 text-center">
+          <Rocket size={40} className="mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">no hay proyectos todavía</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            agregá tu primer proyecto para trackear estado, stack y próximos pasos.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {active.map((p) => (

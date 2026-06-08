@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { and, asc, desc, eq } from 'drizzle-orm';
+import { GraduationCap } from 'lucide-react';
 import { ScheduleGrid } from '@/components/uni/ScheduleGrid';
 import { AssignmentRow } from '@/components/today/AssignmentRow';
 import { AssignmentForm } from '@/components/uni/AssignmentForm';
@@ -42,7 +43,7 @@ export default async function UniPage() {
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-7xl">
       <div className="mb-6 lg:mb-8">
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-          uni · ucema 2026-1
+          uni
         </p>
         <h2 className="text-2xl lg:text-3xl font-semibold mt-1">agenda</h2>
         <div className="mt-2 flex items-center gap-3">
@@ -53,6 +54,17 @@ export default async function UniPage() {
         </div>
       </div>
 
+      {subjects.length === 0 && (
+        <div className="py-16 text-center">
+          <GraduationCap size={40} className="mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">no hay materias cargadas</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            agregá tu primera materia para ver el horario semanal y trackear TPs.
+          </p>
+        </div>
+      )}
+
+      {subjects.length > 0 && (<>
       <Card className="mb-6">
         <CardHeader><CardTitle>semana</CardTitle></CardHeader>
         <CardContent>
@@ -108,6 +120,7 @@ export default async function UniPage() {
           </CardContent>
         </Card>
       )}
+      </>)}
     </div>
   );
 }

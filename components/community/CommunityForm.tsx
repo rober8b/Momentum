@@ -3,24 +3,21 @@
 import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { createCommunityItem } from '@/app/community/actions';
+import { createCommunityItem, createOrganization } from '@/app/community/actions';
 import { cn } from '@/lib/cn';
-import type { CommunityOrg } from '@/lib/types';
+import type { Organization } from '@/lib/types';
 
-const ORG_OPTIONS: { value: CommunityOrg; label: string }[] = [
-  { value: 'ai-consensus', label: 'AI Consensus' },
-  { value: 'levellers', label: 'The Levellers' },
-  { value: 'xplora', label: 'Xplora UCEMA' },
-  { value: 'other', label: 'Otros' },
-];
-
-export function CommunityForm() {
+export function CommunityForm({ orgs }: { orgs: Organization[] }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [org, setOrg] = useState<CommunityOrg>('ai-consensus');
+  const [orgId, setOrgId] = useState<string>('');
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [isPending, startTransition] = useTransition();
+
+  // New org inline state
+  const [newOrgOpen, setNewOrgOpen] = useState(false);
+  const [newOrgName, setNewOrgName] = useState('');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,14 +25,27 @@ export function CommunityForm() {
     startTransition(async () => {
       await createCommunityItem({
         title: title.trim(),
-        organization: org,
+        organization_id: orgId || null,
         due_date: dueDate || null,
         description: description.trim() || null,
       });
       setTitle('');
       setDueDate('');
       setDescription('');
+      setOrgId('');
       setOpen(false);
+    });
+  }
+
+  function submitNewOrg(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newOrgName.trim()) return;
+    startTransition(async () => {
+      const slug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const row = await createOrganization({ name: newOrgName.trim(), slug });
+      if (row?.id) setOrgId(row.id);
+      setNewOrgName('');
+      setNewOrgOpen(false);
     });
   }
 
@@ -66,15 +76,45 @@ export function CommunityForm() {
         )}
       />
       <div className="flex items-center gap-2">
-        <select
-          value={org}
-          onChange={(e) => setOrg(e.target.value as CommunityOrg)}
-          className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1"
-        >
-          {ORG_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+        {newOrgOpen ? (
+          <div className="flex items-center gap-1 flex-1">
+            <input
+              autoFocus
+              type="text"
+              value={newOrgName}
+              onChange={(e) => setNewOrgName(e.target.value)}
+              placeholder="nombre organización"
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1 focus:outline-none focus:border-accent"
+            />
+            <Button type="button" size="sm" onClick={submitNewOrg} disabled={isPending || !newOrgName.trim()}>
+              +
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setNewOrgOpen(false)}>
+              ✕
+            </Button>
+          </div>
+        ) : (
+          <>
+            <select
+              value={orgId}
+              onChange={(e) => setOrgId(e.target.value)}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1"
+            >
+              <option value="">sin organización</option>
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setNewOrgOpen(true)}
+              className="shrink-0 text-xs text-muted-foreground hover:text-accent transition-colors"
+              title="nueva organización"
+            >
+              <Plus size={12} />
+            </button>
+          </>
+        )}
         <input
           type="date"
           value={dueDate}

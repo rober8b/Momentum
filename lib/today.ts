@@ -12,6 +12,7 @@ import type {
   FreelanceTask,
   OwnProject,
   CommunityItem,
+  Organization,
 } from '@/lib/types';
 
 export type TodayClass = {
@@ -185,13 +186,17 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
 
   const freelanceTasks = ftRows.map((r) => ({
     ...rowToFreelanceTask(r),
-    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? 'sin cliente' : 'sin cliente',
+    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? '' : '',
   }));
 
   // ----- COMUNIDAD -----
   const communityRows = await db
-    .select()
+    .select({
+      item: schema.communityItems,
+      org_name: schema.organizations.name,
+    })
     .from(schema.communityItems)
+    .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
     .where(
       and(
         eq(schema.communityItems.user_id, userId),
@@ -201,7 +206,7 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
     )
     .orderBy(asc(schema.communityItems.due_date));
 
-  const communityItems = communityRows.map(rowToCommunityItem);
+  const communityItems = communityRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
 
   return {
     classes,
@@ -260,14 +265,25 @@ function rowToOwnProject(r: typeof schema.ownProjects.$inferSelect): OwnProject 
   };
 }
 
-function rowToCommunityItem(r: typeof schema.communityItems.$inferSelect): CommunityItem {
+function rowToCommunityItem(r: typeof schema.communityItems.$inferSelect, orgName: string | null = null): CommunityItem {
   return {
     id: r.id,
-    organization: r.organization,
+    organization_id: r.organization_id,
+    organization_name: orgName,
     title: r.title,
     description: r.description,
     status: r.status,
     due_date: r.due_date,
+    created_at: r.created_at.toISOString(),
+  };
+}
+
+function rowToOrganization(r: typeof schema.organizations.$inferSelect): Organization {
+  return {
+    id: r.id,
+    user_id: r.user_id,
+    name: r.name,
+    slug: r.slug,
     created_at: r.created_at.toISOString(),
   };
 }
@@ -282,4 +298,5 @@ export {
   rowToFreelanceTask,
   rowToOwnProject,
   rowToCommunityItem,
+  rowToOrganization,
 };

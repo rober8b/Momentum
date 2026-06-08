@@ -73,7 +73,7 @@ export type Assignment = {
   completed_at: string | null;
 };
 
-// ---------- WORK (Aleph) ----------
+// ---------- WORK ----------
 
 export type WorkblockType = 'ticket' | 'task' | 'meeting' | 'review';
 export type WorkblockStatus = 'backlog' | 'today' | 'in-progress' | 'blocked' | 'done';
@@ -175,12 +175,20 @@ export type OwnProject = {
 
 // ---------- COMUNIDAD ----------
 
-export type CommunityOrg = 'ai-consensus' | 'levellers' | 'xplora' | 'other';
 export type CommunityStatus = 'pending' | 'done' | 'cancelled';
+
+export type Organization = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  slug: string;
+  created_at: string;
+};
 
 export type CommunityItem = {
   id: string;
-  organization: CommunityOrg;
+  organization_id: string | null;
+  organization_name: string | null;
   title: string;
   description: string | null;
   status: CommunityStatus;

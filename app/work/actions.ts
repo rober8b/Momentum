@@ -18,7 +18,7 @@ const workblockSchema = z.object({
   status: statusEnum.default('backlog'),
   priority: z.enum(['low', 'med', 'high']).default('med'),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  client: z.string().default('aleph'),
+  client: z.string().default(''),
   notes: z.string().optional().nullable(),
   links: z.record(z.string(), z.string()).default({}),
 });
