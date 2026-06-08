@@ -109,6 +109,18 @@ export async function requireUser(): Promise<User> {
   return rowToUser(row);
 }
 
+/**
+ * Like requireUser() but returns null instead of throwing.
+ * Use in pages that have both a public and authenticated view (e.g. landing vs dashboard).
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    return await requireUser();
+  } catch {
+    return null;
+  }
+}
+
 /** Hash a plaintext password. */
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);

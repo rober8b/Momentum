@@ -21,12 +21,12 @@ const NAV = [
 const MOBILE_NAV = NAV.filter((i) => !['/projects', '/community'].includes(i.href));
 const MORE_NAV = NAV.filter((i) => ['/projects', '/community'].includes(i.href));
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({ children, isAuthenticated }: { children: React.ReactNode; isAuthenticated?: boolean }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // En /login no mostramos el shell.
-  if (pathname === '/login') {
+  // Sin shell en /login ni en la landing pública (/ sin sesión).
+  if (pathname === '/login' || (pathname === '/' && !isAuthenticated)) {
     return <>{children}</>;
   }
 

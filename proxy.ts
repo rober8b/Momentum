@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const COOKIE_NAME = 'cc_session';
 
-const PUBLIC_PATHS = ['/login', '/setup', '/forgot-password', '/reset-password', '/verify-email'];
+const PUBLIC_PATHS = ['/', '/login', '/setup', '/forgot-password', '/reset-password', '/verify-email'];
 const CRON_PATHS = ['/api/export'];
 
 function base64UrlEncode(bytes: ArrayBuffer): string {
