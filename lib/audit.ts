@@ -1,7 +1,21 @@
 import 'server-only';
 import { db, schema } from '@/lib/db';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'signup';
+export type AuditAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'login'
+  | 'logout'
+  | 'signup'
+  | 'api_token_created'
+  | 'api_token_revoked'
+  | 'api_import_projects'
+  | 'api_import_assignments'
+  | 'api_import_workblocks'
+  | 'api_import_community'
+  | 'api_import_freelance'
+  | 'api_import_build';
 
 export interface LogAuditParams {
   userId: string | null;

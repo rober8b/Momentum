@@ -196,6 +196,39 @@ export type CommunityItem = {
   created_at: string;
 };
 
+// ---------- API TOKENS ----------
+
+export type ApiScope =
+  | 'projects:write'
+  | 'uni:write'
+  | 'work:write'
+  | 'community:write'
+  | 'freelance:write'
+  | 'build:write'
+  | 'organizations:write';
+
+export const ALL_SCOPES: ApiScope[] = [
+  'projects:write',
+  'uni:write',
+  'work:write',
+  'community:write',
+  'freelance:write',
+  'build:write',
+  'organizations:write',
+];
+
+export type ApiToken = {
+  id: string;
+  user_id: string;
+  name: string;
+  token_prefix: string;
+  scopes: ApiScope[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  revoked_at: string | null;
+};
+
 // ---------- EXPORT ----------
 
 export type VaultExport = {
