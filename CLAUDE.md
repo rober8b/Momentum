@@ -1,6 +1,6 @@
 # CLAUDE.md — momentum
 
-Personal daily dashboard de Rober. Single-user. 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's workspace\`); exporta items completados semanalmente.
+Personal daily dashboard de Rober. Multi-user (admin + members). 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's workspace\`); exporta items completados semanalmente.
 
 - **Live URL:** configurar dominio custom en Vercel → Settings → Domains
 - **Plan original:** `C:\Users\rober\.claude\plans\tengo-menos-de-1k-effervescent-pizza.md`
@@ -36,7 +36,8 @@ Esta versión tiene cambios respecto a 14/15 que no están en tu training data. 
 | DB | **Railway Postgres** | conn string en `DATABASE_URL` |
 | ORM | **Drizzle ORM** via `postgres-js` driver | singleton en `lib/db/index.ts` |
 | Validation | `zod` v4 | en server actions, `z.record` requiere key+value type |
-| Auth | password + HMAC-firmada cookie | single-user, sin servicios externos |
+| Auth | bcrypt + HMAC-firmada cookie | multi-user, tabla `users`, sin servicios externos |
+| i18n | `lib/strings.ts` + `t(key, lang)` | `en` / `es`, lang en `user.settings.language` |
 | Pkg mgr | npm | `package-lock.json` en repo |
 | Analytics | `@vercel/analytics` | inyectado en `app/layout.tsx` |
 | Deploy | Vercel + cron | config en `vercel.json` |
@@ -73,6 +74,7 @@ npm run typecheck && npm run build
 | Auth — verificación de sesión (Node runtime) | `lib/auth.ts` |
 | Auth — middleware de protección (Edge runtime) | `proxy.ts` |
 | Date helpers | `lib/date.ts` |
+| i18n — strings en inglés y español | `lib/strings.ts` + función `t(key, lang)` |
 | Today view — aggregator de los 3 pilares | `lib/today.ts` (también exporta row mappers) |
 | Export semanal al vault | `lib/vault-export.ts` + `app/api/export/route.ts` |
 | Server actions del pilar X | `app/<pilar>/actions.ts` |
@@ -85,6 +87,8 @@ npm run typecheck && npm run build
 | Tokens visuales (colors, radius, fonts, scrollbar) | `app/globals.css` |
 | Login form + action | `app/login/page.tsx` + `app/login/actions.ts` + `app/login/LoginForm.tsx` |
 | Logout | `app/logout/route.ts` |
+| Settings — preferencias del usuario | `app/settings/profile/` + `app/settings/profile/actions.ts` |
+| Settings — API tokens | `app/settings/api-tokens/` |
 | Cron schedule | `vercel.json` |
 | Convenciones de naming, formato de pages del vault | `C:\Users\rober\rober's workspace\CLAUDE.md` |
 
@@ -92,9 +96,9 @@ npm run typecheck && npm run build
 
 ## Hard rules (max 15)
 
-1. **YOU MUST llamar `await requireRober()` al top de cada Server Component y Server Action** que toque data privada. El `proxy.ts` es la primera línea de defensa; esto es la segunda.
+1. **YOU MUST llamar `await requireUser()` al top de cada Server Component y Server Action** que toque data privada. El `proxy.ts` es la primera línea de defensa; esto es la segunda. `requireUser()` retorna el `User` completo con `settings`.
 2. **IMPORTANT: usar `db` y `schema` de `@/lib/db`, nunca crear otro cliente Postgres.** El singleton evita N conexiones en hot reload de Next dev.
-3. **YOU MUST usar Server Actions para mutaciones.** No API routes. Única excepción: `/api/export` (es cron de Vercel) y `/logout` (route handler para soportar links).
+3. **YOU MUST usar Server Actions para mutaciones.** No API routes. Única excepción: `/api/export` (es cron de Vercel), `/api/v1/*` (API pública con Bearer token), y `/logout` (route handler para soportar links).
 4. **IMPORTANT: validar inputs con Zod** en cada server action antes de tocar la DB. Ver `app/work/actions.ts` como patrón canónico.
 5. **YOU MUST llamar `revalidatePath('/')` y `revalidatePath('/<pilar>')` después de cada mutación** que afecte la Today view o el listado del pilar.
 6. **IMPORTANT: usar `export const dynamic = 'force-dynamic'`** en toda page que haga queries — esta app es 100% server-rendered, no hay caching estático válido.
@@ -119,6 +123,7 @@ npm run typecheck && npm run build
 - **El vault de Obsidian** (`C:\Users\rober\rober's workspace\`) es territorio aparte — no editar desde este proyecto.
 - **Si pegás un error de Next 16 que no entendés**, leer `node_modules/next/dist/docs/` antes de inventar una solución.
 - **Idioma del UI:** español argentino, lowercase, sin mayúsculas innecesarias. Ver botones existentes (`"agregar"`, `"guardar"`, `"salir"`).
+- **i18n:** strings de UI van en `lib/strings.ts`. Nunca hardcodear strings en componentes compartidos — usar `t(key, lang)`.
 
 ---
 
@@ -128,21 +133,22 @@ npm run typecheck && npm run build
 
 ```tsx
 // app/work/page.tsx
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rowToWorkblock } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WorkPage() {
-  await requireRober();
+  const user = await requireUser();
   const rows = await db
     .select()
     .from(schema.workblocks)
+    .where(eq(schema.workblocks.user_id, user.id))   // siempre filtrar por user_id
     .orderBy(desc(schema.workblocks.created_at));
   const workblocks = rows.map(rowToWorkblock);
-  return <KanbanBoard workblocks={workblocks} />;
+  return <KanbanBoard workblocks={workblocks} lang={user.settings.language} />;
 }
 ```
 
@@ -155,7 +161,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { requireRober } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 
 const inputSchema = z.object({
   title: z.string().min(1),
@@ -163,11 +169,14 @@ const inputSchema = z.object({
 });
 
 export async function createWorkblock(input: z.infer<typeof inputSchema>) {
-  await requireRober();                          // 1. auth
-  const parsed = inputSchema.parse(input);       // 2. validate
-  await db.insert(schema.workblocks).values(parsed); // 3. mutate
-  revalidatePath('/work');                       // 4. revalidate listado
-  revalidatePath('/');                           // 5. revalidate Today
+  const user = await requireUser();                  // 1. auth — devuelve user completo
+  const parsed = inputSchema.parse(input);           // 2. validate
+  await db.insert(schema.workblocks).values({
+    ...parsed,
+    user_id: user.id,                                // 3. asociar al user
+  });
+  revalidatePath('/work');                           // 4. revalidate listado
+  revalidatePath('/');                               // 5. revalidate Today
 }
 ```
 
@@ -224,14 +233,24 @@ if (!row) notFound();
 
 ## Database schema — overview
 
-5 tablas en `lib/db/schema.ts`:
+15 tablas en `lib/db/schema.ts`:
 
-| Tabla | Para qué | Estados |
-|-------|----------|---------|
+| Tabla | Para qué | Notas |
+|-------|----------|-------|
+| `users` | Cuentas de usuario. `settings: jsonb` con `UserSettings`. | `role: admin\|member`, `active: boolean` |
+| `login_attempts` | Rate limiting de login por IP. | Auto-limpia registros viejos |
+| `password_reset_tokens` | Tokens de reset de contraseña. | Expiran, uso único |
+| `audit_log` | Log de acciones sensibles (login, create, delete, etc.). | Append-only |
 | `subjects` | Materias UCEMA. `schedule: jsonb` con array de `ScheduleSlot`. | `active: boolean` |
 | `assignments` | TPs de las materias. FK `subject_id` con cascade delete. | `todo` / `in-progress` / `done` |
-| `workblocks` | Tickets/tasks de Aleph en kanban. | `backlog` / `today` / `in-progress` / `blocked` / `done` |
+| `workblocks` | Tickets/tasks en kanban. `client: text` libre. | `backlog` / `today` / `in-progress` / `blocked` / `done` |
 | `build_items` | Posts de build-in-public. | `idea` / `draft` / `scheduled` / `published` / `discarded` |
+| `freelance_clients` | Clientes de freelance. | `active` / `paused` / `blocked` / `archived` |
+| `freelance_tasks` | Tasks de cada cliente freelance. FK `client_id`. | mismos status que workblocks |
+| `own_projects` | Proyectos propios (side projects). | `active` / `paused` / `blocked` / `archived` |
+| `organizations` | Organizaciones de comunidad (dinámica, no enum). | slug único por user |
+| `community_items` | Compromisos de comunidad. FK `organization_id`. | `pending` / `done` / `cancelled` |
+| `api_tokens` | Tokens de API para integración MCP/externa. | SHA-256 hash, scopes, revocable |
 | `vault_exports` | Log del cron semanal — qué se exportó y cuándo. | `success` / `failure` / `partial` |
 
 **Para cambiar el schema:**
@@ -244,34 +263,93 @@ if (!row) notFound();
 
 ## Auth flow — exhaustivo
 
-**Vars de entorno:**
-- `APP_PASSWORD` — password única para entrar
-- `SESSION_SECRET` — HMAC secret (min 16 chars, recomendado 32+)
-
-**Cookie:** `momentum_session` — formato `ok.<hmac-base64url>`, HttpOnly, SameSite=Lax, Secure en prod, expires 30d.
-
-**Flujo:**
-
-1. Request entra → `proxy.ts` (Edge runtime, Web Crypto)
-2. Path matchea `/login` o `/api/export` (cron) → pasa
-3. Lee cookie `momentum_session` → verifica HMAC con `SESSION_SECRET` via `crypto.subtle`
-4. Cookie inválida o ausente → redirect a `/login?next=<original>`
-5. Cookie válida → continúa al handler
-6. Server Component / Server Action llama `requireRober()` desde `lib/auth.ts` (Node runtime, `node:crypto`)
-7. `requireRober()` re-verifica con `verifySession()` usando `timingSafeEqual` para evitar timing leaks
-8. Si no auth → throw `'NOT_SIGNED_IN'` (Next captura como error)
+**Setup inicial (primera vez):**
+1. Con DB vacía, `/setup` (ruta pública) muestra el wizard de creación del primer admin
+2. `setupAction` crea el usuario con `hashPassword(password)` (bcrypt, 12 rounds) y `role: 'admin'`
+3. Post-setup → redirect a `/login`
 
 **Login flow:**
-1. POST password al server action `loginAction`
-2. `passwordMatches(input)` compara con `APP_PASSWORD` usando `timingSafeEqual`
-3. Si match → `signSession()` genera HMAC + setea cookie
-4. Redirect a `next` (validado que empiece con `/` y no `//` para evitar open redirect)
+1. POST email + password al server action `loginAction`
+2. Consulta la DB: `SELECT * FROM users WHERE email = ? LIMIT 1`
+3. `verifyPassword(input, user.password_hash)` — bcrypt compare, timing-safe
+4. Si match → `signSession(userId)` genera cookie: `{userId}.{iat}.{hmac(userId.iat)}`
+   - HMAC: SHA-256 sobre `"userId.iat"` usando `SESSION_SECRET`
+   - `iat` = unix timestamp en segundos (habilita invalidación por usuario)
+5. Cookie `momentum_session` seteada: HttpOnly, SameSite=Lax, Secure en prod, expires 30d
+6. Redirect a `next` param (validado que empiece con `/` y no `//`)
+
+**Request flow (protección en dos capas):**
+1. Request entra → `proxy.ts` (Edge runtime, Web Crypto)
+2. Path matchea `/login`, `/setup`, `/reset-password`, etc., o `/api/export` (cron), o `/api/v1/*` → pasa sin verificar cookie
+3. `/signup` → solo pasa si `ALLOW_SIGNUP=true`, sino 404
+4. Lee cookie `momentum_session` → verifica HMAC con `SESSION_SECRET` via `crypto.subtle`
+5. Cookie inválida o ausente → redirect a `/login?next=<original>`
+6. Cookie válida → continúa al handler
+7. Server Component / Server Action llama `requireUser()` desde `lib/auth.ts` (Node runtime, `node:crypto`)
+8. `requireUser()` re-verifica HMAC + consulta DB: busca user por `userId`, chequea `active` y `invalidate_sessions_before`
+9. Si no auth → throw `'NOT_SIGNED_IN'` (Next captura como error)
+10. Retorna `User` completo con `settings: UserSettings` mergeado con defaults
 
 **Logout:** `/logout` route handler (acepta GET y POST) → `cookies().delete(COOKIE_NAME)` → redirect a `/login`.
 
-**Rotación de `SESSION_SECRET`** = invalida automáticamente todas las cookies existentes (el HMAC ya no matchea). Equivale a "logout forzado".
+**Invalidación de sesiones por usuario:** `users.invalidate_sessions_before` (unix timestamp). Setear este campo invalida todas las sesiones anteriores de ese usuario sin afectar a otros. Útil para "cerrar todas las sesiones activas" sin rotar `SESSION_SECRET`.
+
+**Rotación de `SESSION_SECRET`** = invalida TODAS las cookies de TODOS los usuarios. Equivale a logout forzado global.
 
 **NO modificar `proxy.ts` ni `lib/auth.ts` sin avisar** — son los archivos más sensibles del proyecto.
+
+---
+
+## user.settings
+
+Cada usuario tiene `settings: jsonb` con tipo `UserSettings` de `lib/types.ts`:
+
+```ts
+type UserSettings = {
+  timezone: string;       // IANA tz, e.g. 'America/Argentina/Buenos_Aires'. Default: 'UTC'
+  language: 'en' | 'es'; // UI language. Default: 'en'
+  theme: 'dark' | 'light'; // UI theme. Default: 'dark'
+  export_enabled: boolean;  // Participar en cron semanal de vault export. Default: false
+  vault_path: string;       // Path base en el vault Obsidian. Default: ''
+};
+```
+
+- `requireUser()` siempre retorna user con `DEFAULT_USER_SETTINGS` mergeado — nunca undefined.
+- Editar settings: `app/settings/profile/` (UI) + `app/settings/profile/actions.ts`.
+- `vault_path` se usa en el cron de export como prefijo de los paths generados.
+
+---
+
+## API v1
+
+**Base:** `/api/v1/` — auth via Bearer token (`Authorization: Bearer mmt_<64hex>`).
+
+Endpoints:
+
+| Method | Path | Scope | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/v1/health` | ninguno | DB ping, no auth |
+| GET | `/api/v1/setup-status` | ninguno | Estado del setup, para herramientas externas |
+| POST | `/api/v1/import/projects` | `projects:write` | Importar proyectos propios |
+| POST | `/api/v1/import/assignments` | `uni:write` | Importar assignments universitarios |
+| POST | `/api/v1/import/workblocks` | `work:write` | Importar workblocks |
+| POST | `/api/v1/import/community` | `community:write` + `organizations:write` | Importar community items |
+| POST | `/api/v1/import/freelance` | `freelance:write` | Importar clientes y tasks freelance |
+| POST | `/api/v1/import/build` | `build:write` | Importar build items |
+
+**Token format:** `mmt_` + 64 hex chars. Primeros 12 chars = prefix visible en UI. Hash SHA-256 en DB.
+
+**Auth middleware:** `lib/api-auth.ts` — `requireApiToken(req, ['scope:needed'])`.
+
+**Generar token:** `/settings/api-tokens` en la UI.
+
+---
+
+## MCP server
+
+El servidor MCP de Momentum corre como proceso separado (otro repo). Se autentica con un API token de scope `projects:write`, `work:write`, etc. La configuración del MCP apunta a la URL del API v1.
+
+Herramientas MCP disponibles: `analyze_vault_structure`, `detect_obsidian_vault`, `import_from_vault`, `setup_momentum`, `check_requirements`, `create_admin`.
 
 ---
 
@@ -285,19 +363,16 @@ if (!row) notFound();
 - `build_items` con `status='published'` y `published_at >= startOfWeek`
 
 **Cómo:**
-- `app/api/export/route.ts` (runtime `nodejs`) consulta la DB
-- `lib/vault-export.ts:buildExportFiles()` genera markdown con frontmatter siguiendo el schema del vault
-- Devuelve JSON con `{ week, counts, summary, files: [{path, content}] }`
-- `components/ExportButton.tsx` (en el sidebar) descarga un .md consolidado para drag → `00-inbox/` del vault → `/ingest`
+- `app/api/export/route.ts` (runtime `nodejs`) itera sobre todos los users con `settings.export_enabled = true`
+- Para cada user, consulta la DB filtrada por `user_id`, llama a `buildExportFiles(payload, user.settings.vault_path)`
+- `lib/vault-export.ts:buildExportFiles(payload, vaultPath)` genera markdown con frontmatter
+- Si `vault_path` está vacío, los paths se generan bajo `momentum-export/`; si tiene valor, se usan como prefijo
+- Devuelve JSON con `{ week, users: [...], files: [{userId, path, content}] }`
+- `components/ExportButton.tsx` (en el sidebar) descarga un .md consolidado para drag → `00-inbox/` del vault
 
-**Paths target en el vault:**
-- `30-personal/work/aleph/sessions/YYYY-MM-DD-week.md` (workblocks)
-- `20-studies/ucema/<vault_slug>/log.md` (assignments — append por materia)
-- `30-personal/build-log/YYYY-MM-DD-week.md` (build items)
+**Auth del cron:** Vercel manda header `Authorization: Bearer ${CRON_SECRET}`. El handler valida: si `CRON_SECRET` está seteado y el header no matchea → 401. Si en prod no está seteado → 500.
 
 **V2 (TBD):** push directo a un repo de GitHub del vault via Octokit + Syncthing al vault local. Para eso están las vars `VAULT_REPO_OWNER`, `VAULT_REPO_NAME`, `GITHUB_TOKEN` en `.env.example`.
-
-**Auth del cron:** Vercel manda header `Authorization: Bearer ${CRON_SECRET}`. El handler valida (TBD: actualmente comentado, agregar validación antes de prod).
 
 ---
 
@@ -306,10 +381,10 @@ if (!row) notFound();
 | Var | Para qué | Requerido | Ejemplo |
 |-----|----------|-----------|---------|
 | `DATABASE_URL` | Conn string a Railway Postgres | siempre | `postgres://user:pass@host:port/db` |
-| `APP_PASSWORD` | Password del único usuario (Rober) | siempre | (cualquier string) |
 | `SESSION_SECRET` | HMAC secret para firmar cookies | siempre | (32 bytes hex) |
 | `NEXT_PUBLIC_SITE_URL` | URL base para logout redirect | opcional | `http://localhost:3000` |
 | `CRON_SECRET` | Bearer token para cron de Vercel | prod | (string random) |
+| `ALLOW_SIGNUP` | Habilitar ruta `/signup` | opcional | `true` / `false` |
 | `VAULT_REPO_OWNER` | Owner del repo del vault | post-MVP | `bd-rober` |
 | `VAULT_REPO_NAME` | Nombre del repo | post-MVP | `obsidian-vault` |
 | `GITHUB_TOKEN` | PAT con scope `repo` | post-MVP | `ghp_...` |
@@ -353,7 +428,7 @@ git push -u origin main
 
 ## What NOT to do
 
-- ❌ **No agregar Clerk / Auth.js / NextAuth.** La auth simple es deliberada. Si necesitás multi-user en el futuro, lo discutimos primero.
+- ❌ **No agregar Clerk / Auth.js / NextAuth.** La auth multi-user propia es deliberada — bcrypt + HMAC es suficiente para esta app.
 - ❌ **No volver a Supabase.** Railway + Drizzle es la decisión por scaling y type-safety.
 - ❌ **No agregar libs de drag-and-drop al kanban.** Los botones de status change son suficientes y más mobile-friendly.
 - ❌ **No agregar tests por agregar.** App personal — los tests vienen cuando hay un bug real para arreglar.
@@ -362,6 +437,7 @@ git push -u origin main
 - ❌ **No usar `'use client'` por default.** Empezá server, escalá a client solo si hay interactividad real.
 - ❌ **No crear un cliente Supabase ni replicar el patrón viejo.** Drizzle es la única vía a la DB.
 - ❌ **No agregar shadcn.** El stack usa `@base-ui/react` + primitives custom — mantener consistencia con `components/ui/`.
+- ❌ **No hardcodear strings de UI en componentes.** Usar `t(key, lang)` de `lib/strings.ts`.
 
 ---
 
@@ -398,10 +474,22 @@ Esta app es la **capa operacional diaria**. El vault es la **capa de conocimient
 8. Agregar al sidebar nav en `components/AppShell.tsx`
 9. Extender `lib/vault-export.ts:buildExportFiles` si se exporta al vault
 
-### Cambiar la password
-1. Editar `APP_PASSWORD` en `.env.local` (dev) o en Vercel env vars (prod)
-2. Restart del dev server
-3. (Opcional) Rotar `SESSION_SECRET` para invalidar sesiones existentes
+### Cambiar la password de un usuario
+Opción A — desde la UI (si hay página de perfil con campo de contraseña):
+1. Editar en `/settings/profile`
+
+Opción B — desde la DB directamente:
+```bash
+# Generar hash con node
+node -e "const b = require('bcryptjs'); b.hash('nueva_password', 12).then(h => console.log(h))"
+# Luego en psql:
+# UPDATE users SET password_hash = '<hash>' WHERE email = 'tu@email.com';
+```
+
+Opción C — invalidar todas las sesiones activas del usuario:
+```sql
+UPDATE users SET invalidate_sessions_before = EXTRACT(EPOCH FROM NOW())::bigint WHERE email = 'tu@email.com';
+```
 
 ### Renombrar / migrar una tabla
 1. Editar `lib/db/schema.ts` con el cambio
