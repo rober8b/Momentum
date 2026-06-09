@@ -8,6 +8,9 @@ const COOKIE_NAME = 'momentum_session';
 
 const PUBLIC_PATHS = ['/', '/login', '/setup', '/forgot-password', '/reset-password', '/verify-email'];
 const CRON_PATHS = ['/api/export'];
+// All /api/v1/* routes manage their own auth (Bearer token or session cookie).
+// The proxy must not block them; each handler calls requireApiToken() or verifySession().
+const API_V1_PREFIX = '/api/v1';
 
 function base64UrlEncode(bytes: ArrayBuffer): string {
   const arr = new Uint8Array(bytes);
@@ -67,7 +70,7 @@ export async function proxy(req: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  if (isCron(pathname) || isPublic(pathname)) {
+  if (isCron(pathname) || isPublic(pathname) || pathname.startsWith(API_V1_PREFIX)) {
     return NextResponse.next();
   }
 

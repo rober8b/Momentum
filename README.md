@@ -59,6 +59,55 @@ It is designed to be self-hosted. There is no cloud service, no subscription, no
 
 ---
 
+## Setup with Claude Code (recommended)
+
+If you use Claude Code, install Momentum and import your Obsidian vault with one conversation.
+
+### Install the MCP server
+
+```bash
+npm install -g momentum-mcp
+```
+
+(Or use locally: `npx momentum-mcp`)
+
+### Add to Claude Code
+
+```bash
+claude mcp add momentum -- momentum-mcp
+```
+
+Or for Claude Desktop, add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "momentum": {
+      "command": "momentum-mcp"
+    }
+  }
+}
+```
+
+### Use it
+
+In Claude Code, just say:
+
+> "Set up Momentum on my machine and import my Obsidian vault"
+
+Claude will:
+1. Check prerequisites (Node 20+, Docker or PostgreSQL)
+2. Clone and install Momentum
+3. Set up the database
+4. Create your admin account
+5. Detect your Obsidian vault
+6. Map vault folders to Momentum pillars
+7. Import your data
+
+Full docs: [momentum-mcp](https://github.com/rober8b/Momentum-mcp)
+
+---
+
 ## Quick start (self-host)
 
 ### Prerequisites

@@ -8,7 +8,7 @@ Base URL: `https://your-momentum-instance.vercel.app/api/v1`
 
 ## Authentication
 
-All endpoints (except `/health` and `/setup-status`) require a Bearer token:
+All endpoints (except `/health`, `/setup-status`, `/setup`, and `/login`) require a Bearer token:
 
 ```
 Authorization: Bearer mmt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -82,6 +82,126 @@ curl https://your-instance.vercel.app/api/v1/setup-status
   "setup_required": false
 }
 ```
+
+---
+
+### POST /api/v1/setup
+
+No auth required. Creates the first admin user. Returns 403 if an admin already exists.
+
+```bash
+curl -X POST https://your-instance.vercel.app/api/v1/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "supersecret1234",
+    "name": "Admin",
+    "language": "en",
+    "timezone": "America/Argentina/Buenos_Aires"
+  }'
+```
+
+**Body:**
+```ts
+{
+  email: string;                         // required, valid email
+  password: string;                      // required, min 12 chars
+  name: string;                          // required, max 100 chars
+  language?: "en" | "es";               // default: "en"
+  timezone?: string;                     // default: "UTC"
+}
+```
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "admin": {
+    "id": "uuid-...",
+    "email": "admin@example.com",
+    "name": "Admin"
+  },
+  "next_step": "Generate an API token at /settings/api-tokens"
+}
+```
+
+**Response 403** (already set up):
+```json
+{
+  "error": "Setup has already been completed",
+  "code": "setup_already_completed"
+}
+```
+
+---
+
+### POST /api/v1/login
+
+No auth required. Authenticates with email/password, sets session cookie, and returns it in the body for programmatic use (e.g. MCP flows). Rate-limited: 5 failed attempts per 15 minutes per IP.
+
+```bash
+curl -X POST https://your-instance.vercel.app/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"supersecret1234"}' \
+  -c cookies.txt
+```
+
+**Body:**
+```ts
+{
+  email: string;
+  password: string;
+}
+```
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "user": { "id": "uuid-...", "email": "admin@example.com", "name": "Admin", "role": "admin" },
+  "session_cookie": "momentum_session=uuid.iat.hmac",
+  "expires_at": "2026-07-08T18:00:00.000Z"
+}
+```
+
+Also sets `Set-Cookie: momentum_session=...; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`.
+
+---
+
+### POST /api/v1/tokens
+
+Requires a valid **session cookie** (not a Bearer token). Use after `/login` to generate an API token programmatically.
+
+```bash
+curl -X POST https://your-instance.vercel.app/api/v1/tokens \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "name": "MCP Auto-generated Token",
+    "scopes": ["projects:write","uni:write","work:write","community:write","freelance:write","build:write","organizations:write"]
+  }'
+```
+
+**Body:**
+```ts
+{
+  name: string;                          // required, max 100 chars
+  scopes: ApiScope[];                    // required, min 1 scope
+  expires_at?: string;                   // ISO 8601 datetime, optional
+}
+```
+
+**Response 201:**
+```json
+{
+  "token": "mmt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "id": "uuid-...",
+  "prefix": "mmt_xxxxxxxx",
+  "expires_at": null
+}
+```
+
+The `token` value is shown **once** — store it immediately.
 
 ---
 
@@ -350,8 +470,13 @@ curl -X POST https://your-instance.vercel.app/api/v1/import/build \
 | 401 | `invalid_token` | Token missing, malformed, or hash not found |
 | 401 | `token_expired` | Token past `expires_at` |
 | 401 | `token_revoked` | Token has been revoked |
+| 401 | `invalid_credentials` | Wrong email or password (login endpoint) |
+| 401 | `unauthenticated` | Session cookie missing or invalid (tokens endpoint) |
 | 403 | `insufficient_scope` | Token doesn't have a required scope |
+| 403 | `setup_already_completed` | Setup endpoint called when admin already exists |
+| 403 | `account_disabled` | Account is inactive |
 | 400 | `invalid_request` | Body doesn't match schema (includes `issues` array) |
+| 429 | `rate_limited` | Too many failed login attempts |
 | 500 | `internal_error` | Unexpected server error |
 
 **Error response shape:**
@@ -382,3 +507,4 @@ TODO: not implemented in v1. Planned for a future release using an in-memory sli
 | Version | Date | Changes |
 |---------|------|---------|
 | 0.1.0 | 2026-06-08 | Initial API — health, setup-status, import endpoints for all 6 pillars |
+| 0.1.0 | 2026-06-08 | Sprint 4 — setup, login, tokens endpoints for programmatic bootstrap |
