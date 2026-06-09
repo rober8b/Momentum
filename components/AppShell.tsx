@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal, Settings } from 'lucide-react';
+import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal, Settings, User } from 'lucide-react';
 import { ExportButton } from './ExportButton';
 import { SearchBar } from './search/SearchBar';
 import { cn } from '@/lib/cn';
@@ -83,6 +83,14 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
               salir
             </a>
             <div className="flex items-center gap-3">
+              <Link
+                href="/settings/profile"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title="Perfil"
+              >
+                <User size={12} />
+                perfil
+              </Link>
               <Link
                 href="/settings/api-tokens"
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"

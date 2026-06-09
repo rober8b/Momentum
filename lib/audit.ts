@@ -16,7 +16,8 @@ export type AuditAction =
   | 'api_import_community'
   | 'api_import_freelance'
   | 'api_import_build'
-  | 'setup_completed';
+  | 'setup_completed'
+  | 'settings_updated';
 
 export interface LogAuditParams {
   userId: string | null;
