@@ -7,29 +7,34 @@ import { Badge } from '@/components/ui/Badge';
 import { formatDate, urgencyOf } from '@/lib/date';
 import { toggleAssignmentDone } from '@/app/uni/actions';
 import { cn } from '@/lib/cn';
+import { t } from '@/lib/strings';
 import type { Assignment } from '@/lib/types';
+import type { Lang } from '@/lib/strings';
 
 type Props = {
   assignment: Assignment & { subjectName: string | null };
   tz?: string;
+  lang?: Lang;
 };
 
-const URGENCY_BADGE: Record<
+function getUrgencyBadge(lang: Lang): Record<
   ReturnType<typeof urgencyOf>,
   { variant: 'danger' | 'warning' | 'accent' | 'muted' | 'default'; label: string }
-> = {
-  overdue: { variant: 'danger', label: 'vencido' },
-  today: { variant: 'warning', label: 'hoy' },
-  soon: { variant: 'accent', label: 'esta semana' },
-  later: { variant: 'muted', label: 'después' },
-  none: { variant: 'default', label: 'sin fecha' },
-};
+> {
+  return {
+    overdue: { variant: 'danger', label: t('urgencyOverdue', lang) },
+    today: { variant: 'warning', label: t('urgencyToday', lang) },
+    soon: { variant: 'accent', label: t('urgencySoon', lang) },
+    later: { variant: 'muted', label: t('urgencyLater', lang) },
+    none: { variant: 'default', label: t('urgencyNone', lang) },
+  };
+}
 
-export function AssignmentRow({ assignment, tz = 'UTC' }: Props) {
+export function AssignmentRow({ assignment, tz = 'UTC', lang = 'en' }: Props) {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(assignment.status === 'done');
   const urgency = urgencyOf(assignment.due_date, tz);
-  const badge = URGENCY_BADGE[urgency];
+  const badge = getUrgencyBadge(lang)[urgency];
 
   return (
     <div

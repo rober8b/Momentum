@@ -1,16 +1,21 @@
 import { BlockCard } from './BlockCard';
 import { BlockForm } from './BlockForm';
+import { t } from '@/lib/strings';
 import type { Workblock, WorkblockStatus } from '@/lib/types';
+import type { Lang } from '@/lib/strings';
 
-const COLUMNS: { id: WorkblockStatus; label: string; tone: string }[] = [
-  { id: 'backlog', label: 'backlog', tone: 'text-muted-foreground' },
-  { id: 'today', label: 'hoy', tone: 'text-foreground' },
-  { id: 'in-progress', label: 'in progress', tone: 'text-accent' },
-  { id: 'blocked', label: 'blocked', tone: 'text-warning' },
-  { id: 'done', label: 'done', tone: 'text-success' },
-];
+function getColumns(lang: Lang): { id: WorkblockStatus; label: string; tone: string }[] {
+  return [
+    { id: 'backlog', label: 'backlog', tone: 'text-muted-foreground' },
+    { id: 'today', label: t('statusToday', lang), tone: 'text-foreground' },
+    { id: 'in-progress', label: 'in progress', tone: 'text-accent' },
+    { id: 'blocked', label: 'blocked', tone: 'text-warning' },
+    { id: 'done', label: 'done', tone: 'text-success' },
+  ];
+}
 
-export function KanbanBoard({ workblocks, tz = 'UTC' }: { workblocks: Workblock[]; tz?: string }) {
+export function KanbanBoard({ workblocks, tz = 'UTC', lang = 'en' }: { workblocks: Workblock[]; tz?: string; lang?: Lang }) {
+  const COLUMNS = getColumns(lang);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
       {COLUMNS.map((col) => {

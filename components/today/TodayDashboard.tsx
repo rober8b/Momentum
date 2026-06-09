@@ -5,9 +5,11 @@ import { ClassCard } from './ClassCard';
 import { AssignmentRow } from './AssignmentRow';
 import { TicketCard } from './TicketCard';
 import { BuildPrompt } from './BuildPrompt';
+import { t } from '@/lib/strings';
 import type { TodayData } from '@/lib/today';
+import type { Lang } from '@/lib/strings';
 
-export function TodayDashboard({ data }: { data: TodayData }) {
+export function TodayDashboard({ data, lang = 'en' }: { data: TodayData; lang?: Lang }) {
   const totalItems = data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length + data.freelanceTasks.length + data.communityItems.length;
 
   return (
@@ -23,16 +25,16 @@ export function TodayDashboard({ data }: { data: TodayData }) {
           </h2>
         </div>
         <p className="text-xs text-muted-foreground font-mono">
-          {totalItems} items pendientes
+          {totalItems} {t('todayItems', lang)}
         </p>
       </div>
 
       {totalItems === 0 && (
         <div className="py-16 text-center mb-8">
           <Sparkles size={40} className="mx-auto mb-4 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-foreground">todo en orden</p>
+          <p className="text-sm font-medium text-foreground">{t('todayAllClear', lang)}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            no hay nada pendiente para hoy. usá los pilares del sidebar para cargar tareas, materias, clientes o ideas.
+            {t('todayGetStarted', lang)}
           </p>
         </div>
       )}
@@ -78,7 +80,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
                 </p>
                 <div className="space-y-2">
                   {data.assignments.map((a) => (
-                    <AssignmentRow key={a.id} assignment={a} tz={data.tz} />
+                    <AssignmentRow key={a.id} assignment={a} tz={data.tz} lang={lang} />
                   ))}
                 </div>
               </div>
@@ -110,7 +112,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
               </p>
             )}
             {data.workblocks.map((w) => (
-              <TicketCard key={w.id} workblock={w} />
+              <TicketCard key={w.id} workblock={w} lang={lang} />
             ))}
           </CardContent>
         </Card>
@@ -130,7 +132,7 @@ export function TodayDashboard({ data }: { data: TodayData }) {
             </Link>
           </CardHeader>
           <CardContent className="flex-1 min-h-[400px]">
-            <BuildPrompt items={data.buildItems} />
+            <BuildPrompt items={data.buildItems} lang={lang} />
           </CardContent>
         </Card>
       </div>

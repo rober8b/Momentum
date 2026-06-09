@@ -9,5 +9,5 @@ export default async function TodayPage() {
   const user = await getCurrentUser();
   if (!user) return <PublicLanding />;
   const data = await getTodayData(user.id, user.settings.timezone);
-  return <TodayDashboard data={data} />;
+  return <TodayDashboard data={data} lang={user.settings.language} />;
 }

@@ -6,24 +6,28 @@ import { Badge } from '@/components/ui/Badge';
 import { formatDate, urgencyOf } from '@/lib/date';
 import { toggleCommunityDone, deleteCommunityItem, cancelCommunityItem } from '@/app/community/actions';
 import { cn } from '@/lib/cn';
+import { t } from '@/lib/strings';
 import type { CommunityItem } from '@/lib/types';
+import type { Lang } from '@/lib/strings';
 
-const URGENCY_BADGE: Record<
+function getUrgencyBadge(lang: Lang): Record<
   ReturnType<typeof urgencyOf>,
   { variant: 'danger' | 'warning' | 'accent' | 'muted' | 'default'; label: string }
-> = {
-  overdue: { variant: 'danger', label: 'vencido' },
-  today: { variant: 'warning', label: 'hoy' },
-  soon: { variant: 'accent', label: 'esta semana' },
-  later: { variant: 'muted', label: 'después' },
-  none: { variant: 'default', label: 'sin fecha' },
-};
+> {
+  return {
+    overdue: { variant: 'danger', label: t('urgencyOverdue', lang) },
+    today: { variant: 'warning', label: t('urgencyToday', lang) },
+    soon: { variant: 'accent', label: t('urgencySoon', lang) },
+    later: { variant: 'muted', label: t('urgencyLater', lang) },
+    none: { variant: 'default', label: t('urgencyNone', lang) },
+  };
+}
 
-export function CommitmentRow({ item, tz = 'UTC' }: { item: CommunityItem; tz?: string }) {
+export function CommitmentRow({ item, tz = 'UTC', lang = 'en' }: { item: CommunityItem; tz?: string; lang?: Lang }) {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(item.status === 'done');
   const urgency = urgencyOf(item.due_date, tz);
-  const badge = URGENCY_BADGE[urgency];
+  const badge = getUrgencyBadge(lang)[urgency];
 
   function toggle() {
     startTransition(async () => {

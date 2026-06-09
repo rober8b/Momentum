@@ -30,7 +30,7 @@ export default async function WorkPage() {
           {workblocks.length} workblocks totales · {workblocks.filter(w => w.status !== 'done').length} activos
         </p>
       </div>
-      <KanbanBoard workblocks={workblocks} tz={user.settings.timezone} />
+      <KanbanBoard workblocks={workblocks} tz={user.settings.timezone} lang={user.settings.language} />
     </div>
   );
 }

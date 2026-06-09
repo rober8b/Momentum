@@ -74,6 +74,24 @@ export const strings = {
     buildNoItems: 'no ideas or drafts yet.',
     buildNoItemsHint: 'add your first post idea to get started.',
 
+    // Urgency labels (shared by assignment and community rows)
+    urgencyOverdue: 'overdue',
+    urgencyToday: 'today',
+    urgencySoon: 'this week',
+    urgencyLater: 'later',
+    urgencyNone: 'no date',
+
+    // Kanban / ticket status
+    statusToday: 'today',
+
+    // Today dashboard empty state
+    todayAllClear: 'all clear',
+
+    // Build prompt
+    buildCapture: 'capture an idea now',
+    buildNoPending: 'no ideas or drafts pending.',
+    buildNoPendingHint: 'start capturing an idea above.',
+
     // Common
     noClient: 'no client',
     addOne: 'add one →',
@@ -150,6 +168,24 @@ export const strings = {
     buildTitle: 'tracker build-in-public',
     buildNoItems: 'no hay ideas ni drafts todavía.',
     buildNoItemsHint: 'agregá tu primera idea de post para empezar.',
+
+    // Urgency labels (shared by assignment and community rows)
+    urgencyOverdue: 'vencido',
+    urgencyToday: 'hoy',
+    urgencySoon: 'esta semana',
+    urgencyLater: 'después',
+    urgencyNone: 'sin fecha',
+
+    // Kanban / ticket status
+    statusToday: 'hoy',
+
+    // Today dashboard empty state
+    todayAllClear: 'todo en orden',
+
+    // Build prompt
+    buildCapture: 'capturá una idea ahora',
+    buildNoPending: 'sin ideas ni drafts pendientes.',
+    buildNoPendingHint: 'empezá capturando una idea arriba.',
 
     // Common
     noClient: 'sin cliente',

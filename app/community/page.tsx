@@ -88,7 +88,7 @@ export default async function CommunityPage() {
             <CardContent>
               <div className="space-y-2">
                 {orgItems.map((item) => (
-                  <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} />
+                  <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} lang={user.settings.language} />
                 ))}
               </div>
             </CardContent>
@@ -104,7 +104,7 @@ export default async function CommunityPage() {
           <CardContent>
             <div className="space-y-2">
               {noOrg.map((item) => (
-                <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} />
+                <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} lang={user.settings.language} />
               ))}
             </div>
           </CardContent>
@@ -119,7 +119,7 @@ export default async function CommunityPage() {
           <CardContent>
             <div className="space-y-2">
               {done.slice(0, 10).map((item) => (
-                <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} />
+                <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} lang={user.settings.language} />
               ))}
             </div>
           </CardContent>

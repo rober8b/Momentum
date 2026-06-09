@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { quickCaptureIdea } from '@/app/build/actions';
 import { cn } from '@/lib/cn';
+import { t } from '@/lib/strings';
 import type { BuildItem } from '@/lib/types';
+import type { Lang } from '@/lib/strings';
 
 const STATUS_BADGE = {
   idea: { variant: 'muted' as const, label: 'idea' },
@@ -16,7 +18,7 @@ const STATUS_BADGE = {
   discarded: { variant: 'default' as const, label: 'discarded' },
 };
 
-export function BuildPrompt({ items }: { items: BuildItem[] }) {
+export function BuildPrompt({ items, lang = 'en' }: { items: BuildItem[]; lang?: Lang }) {
   const [draft, setDraft] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -34,7 +36,7 @@ export function BuildPrompt({ items }: { items: BuildItem[] }) {
       <div className="rounded-md border border-border bg-surface-elev p-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
           <Sparkles size={12} />
-          <span>capturá una idea ahora</span>
+          <span>{t('buildCapture', lang)}</span>
         </div>
         <div className="flex items-end gap-2">
           <textarea
@@ -72,8 +74,8 @@ export function BuildPrompt({ items }: { items: BuildItem[] }) {
       <div className="flex-1 overflow-auto space-y-2 pr-1">
         {items.length === 0 && (
           <p className="text-xs text-muted-foreground py-4 text-center">
-            sin ideas ni drafts pendientes.<br />
-            empezá capturando una idea arriba.
+            {t('buildNoPending', lang)}<br />
+            {t('buildNoPendingHint', lang)}
           </p>
         )}
         {items.map((item) => {

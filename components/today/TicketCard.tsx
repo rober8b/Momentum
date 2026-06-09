@@ -6,7 +6,9 @@ import { Flame, Pause, Play, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { updateWorkblockStatus } from '@/app/work/actions';
 import { cn } from '@/lib/cn';
+import { t } from '@/lib/strings';
 import type { Workblock } from '@/lib/types';
+import type { Lang } from '@/lib/strings';
 
 const PRIORITY_VARIANT = {
   high: { variant: 'danger' as const, icon: Flame },
@@ -14,19 +16,22 @@ const PRIORITY_VARIANT = {
   low: { variant: 'muted' as const, icon: null },
 };
 
-const STATUS_LABEL: Record<Workblock['status'], string> = {
-  backlog: 'backlog',
-  today: 'hoy',
-  'in-progress': 'in progress',
-  blocked: 'blocked',
-  done: 'done',
-};
+function getStatusLabel(lang: Lang): Record<Workblock['status'], string> {
+  return {
+    backlog: 'backlog',
+    today: t('statusToday', lang),
+    'in-progress': 'in progress',
+    blocked: 'blocked',
+    done: 'done',
+  };
+}
 
-export function TicketCard({ workblock }: { workblock: Workblock }) {
+export function TicketCard({ workblock, lang = 'en' }: { workblock: Workblock; lang?: Lang }) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(workblock.status);
   const priority = PRIORITY_VARIANT[workblock.priority];
   const Icon = priority.icon;
+  const STATUS_LABEL = getStatusLabel(lang);
 
   function advance(next: Workblock['status']) {
     startTransition(async () => {
