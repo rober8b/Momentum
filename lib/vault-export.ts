@@ -26,13 +26,14 @@ export type ExportFile = {
   content: string;
 };
 
-export function buildExportFiles(payload: ExportPayload): ExportFile[] {
+export function buildExportFiles(payload: ExportPayload, vaultPath = ''): ExportFile[] {
   const files: ExportFile[] = [];
   const weekISO = isoWeek(new Date(payload.weekEnd));
+  const prefix = vaultPath.trim() ? vaultPath.trim().replace(/\/$/, '') + '/' : 'momentum-export/';
 
   // ----- WORK — un archivo por semana -----
   if (payload.workblocks.length > 0) {
-    const path = `work/sessions/${weekISO}-week.md`;
+    const path = `${prefix}work/sessions/${weekISO}-week.md`;
     const content = [
       fm({
         type: 'work-log',
@@ -78,7 +79,7 @@ export function buildExportFiles(payload: ExportPayload): ExportFile[] {
     bySubject.set(a.subjectSlug, arr);
   }
   for (const [slug, items] of bySubject) {
-    const path = `studies/${slug}/log.md`;
+    const path = `${prefix}studies/${slug}/log.md`;
     const content = [
       fm({
         type: 'study-log',
@@ -106,7 +107,7 @@ export function buildExportFiles(payload: ExportPayload): ExportFile[] {
 
   // ----- BUILD — un archivo semanal -----
   if (payload.buildItems.length > 0) {
-    const path = `build/${weekISO}-week.md`;
+    const path = `${prefix}build/${weekISO}-week.md`;
     const content = [
       fm({
         type: 'build-log',
