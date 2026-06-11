@@ -12,6 +12,7 @@ import {
   integer,
   bigint,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type {
   UserRole,
@@ -28,6 +29,7 @@ import type {
   ProjectStatus,
   CommunityStatus,
   ApiScope,
+  OAuthProvider,
 } from '@/lib/types';
 
 // ---------- USERS ----------
@@ -38,7 +40,8 @@ export const users = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     email: text('email').notNull().unique(),
     display_name: text('display_name'),
-    password_hash: text('password_hash').notNull(),
+    // Nullable: OAuth-only users have no password.
+    password_hash: text('password_hash'),
     role: text('role').$type<UserRole>().default('member').notNull(),
     active: boolean('active').default(true).notNull(),
     settings: jsonb('settings').$type<UserSettings>().default({} as UserSettings).notNull(),
@@ -315,6 +318,23 @@ export const apiTokens = pgTable(
   ],
 );
 
+// ---------- OAUTH ACCOUNTS ----------
+
+export const oauthAccounts = pgTable(
+  'oauth_accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').$type<OAuthProvider>().notNull(),
+    provider_account_id: text('provider_account_id').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('oauth_accounts_user_id_idx').on(t.user_id),
+    uniqueIndex('oauth_accounts_provider_account_idx').on(t.provider, t.provider_account_id),
+  ],
+);
+
 // ---------- TYPES ----------
 
 export type UserRow = typeof users.$inferSelect;
@@ -339,3 +359,5 @@ export type CommunityItemRow = typeof communityItems.$inferSelect;
 export type CommunityItemInsert = typeof communityItems.$inferInsert;
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 export type ApiTokenInsert = typeof apiTokens.$inferInsert;
+export type OAuthAccountRow = typeof oauthAccounts.$inferSelect;
+export type OAuthAccountInsert = typeof oauthAccounts.$inferInsert;

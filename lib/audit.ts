@@ -17,7 +17,11 @@ export type AuditAction =
   | 'api_import_freelance'
   | 'api_import_build'
   | 'setup_completed'
-  | 'settings_updated';
+  | 'settings_updated'
+  | 'oauth_login'
+  | 'oauth_signup'
+  | 'oauth_account_linked'
+  | 'oauth_account_unlinked';
 
 export interface LogAuditParams {
   userId: string | null;

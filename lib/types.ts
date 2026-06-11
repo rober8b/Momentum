@@ -229,6 +229,18 @@ export type ApiToken = {
   revoked_at: string | null;
 };
 
+// ---------- OAUTH ----------
+
+export type OAuthProvider = 'github' | 'google';
+
+export type OAuthAccount = {
+  id: string;
+  user_id: string;
+  provider: OAuthProvider;
+  provider_account_id: string;
+  created_at: string;
+};
+
 // ---------- EXPORT ----------
 
 export type VaultExport = {

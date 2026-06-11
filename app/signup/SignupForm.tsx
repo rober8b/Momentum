@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { signupAction, type SignupState } from './actions';
 
 const initial: SignupState = {};
@@ -30,7 +31,11 @@ const TIMEZONES = [
   { value: 'Pacific/Auckland', label: 'Auckland (UTC+12)' },
 ];
 
-export function SignupForm() {
+type Props = {
+  providers: { github: boolean; google: boolean };
+};
+
+export function SignupForm({ providers }: Props) {
   const [state, formAction, pending] = useActionState(signupAction, initial);
 
   if (state?.pendingVerification) {
@@ -49,6 +54,7 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="space-y-3">
+      <OAuthButtons providers={providers} next="/" lang="es" />
       {/* Honeypot — hidden from real users, filled by bots */}
       <input
         type="text"

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { and, eq, gt, lt } from 'drizzle-orm';
 import { createHmac } from 'node:crypto';
 import { db, schema } from '@/lib/db';
-import { verifyPassword, signSession, COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth';
+import { verifyPassword, createSession, COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       .where(eq(schema.users.email, email.toLowerCase().trim()))
       .limit(1);
 
-    const valid = user ? await verifyPassword(password, user.password_hash) : false;
+    const valid = user?.password_hash ? await verifyPassword(password, user.password_hash) : false;
 
     if (!valid) {
       await new Promise((r) => setTimeout(r, 300 + Math.random() * 200));
@@ -101,19 +101,9 @@ export async function POST(request: Request) {
 
     logAudit({ userId: user.id, action: 'login' });
 
-    const signed = signSession(user.id);
+    const signed = await createSession(user.id);
     const maxAge = SESSION_COOKIE_OPTIONS.maxAge;
     const expiresAt = new Date(Date.now() + maxAge * 1000).toISOString();
-
-    const secure = process.env.NODE_ENV === 'production';
-    const cookieHeader = [
-      `${COOKIE_NAME}=${signed}`,
-      `Path=${SESSION_COOKIE_OPTIONS.path}`,
-      `HttpOnly`,
-      `SameSite=Lax`,
-      `Max-Age=${maxAge}`,
-      ...(secure ? ['Secure'] : []),
-    ].join('; ');
 
     return Response.json(
       {
@@ -127,10 +117,7 @@ export async function POST(request: Request) {
         session_cookie: `${COOKIE_NAME}=${signed}`,
         expires_at: expiresAt,
       },
-      {
-        status: 200,
-        headers: { 'Set-Cookie': cookieHeader },
-      },
+      { status: 200 },
     );
   } catch (err) {
     console.error('[api/v1/login]', err);

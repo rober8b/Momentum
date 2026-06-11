@@ -137,3 +137,18 @@ export const SESSION_COOKIE_OPTIONS = {
   path: '/',
   maxAge: 60 * 60 * 24 * MAX_AGE_DAYS,
 };
+
+/**
+ * Create a session for the given user: signs the session token and sets the
+ * `momentum_session` cookie. Returns the signed token (used by API routes that
+ * also need to echo it in the response body).
+ */
+export async function createSession(userId: string): Promise<string> {
+  const signed = signSession(userId);
+  const store = await cookies();
+  store.set(COOKIE_NAME, signed, {
+    ...SESSION_COOKIE_OPTIONS,
+    secure: process.env.NODE_ENV === 'production',
+  });
+  return signed;
+}

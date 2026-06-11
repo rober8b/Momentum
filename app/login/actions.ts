@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { and, eq, gt, lt } from 'drizzle-orm';
 import { createHmac } from 'node:crypto';
-import { COOKIE_NAME, signSession, verifyPassword, SESSION_COOKIE_OPTIONS } from '@/lib/auth';
+import { COOKIE_NAME, createSession, verifyPassword } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { db, schema } from '@/lib/db';
 
@@ -78,7 +78,7 @@ export async function loginAction(
     .where(eq(schema.users.email, email))
     .limit(1);
 
-  const valid = user ? await verifyPassword(password, user.password_hash) : false;
+  const valid = user?.password_hash ? await verifyPassword(password, user.password_hash) : false;
 
   if (!valid) {
     // Timing-safe delay to slow brute force
@@ -98,11 +98,7 @@ export async function loginAction(
 
   logAudit({ userId: user.id, action: 'login' });
 
-  const store = await cookies();
-  store.set(COOKIE_NAME, signSession(user.id), {
-    ...SESSION_COOKIE_OPTIONS,
-    secure: process.env.NODE_ENV === 'production',
-  });
+  await createSession(user.id);
 
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
   redirect(safeNext);

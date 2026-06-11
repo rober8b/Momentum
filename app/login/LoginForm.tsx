@@ -3,15 +3,24 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { loginAction, type LoginState } from './actions';
 
 const initial: LoginState = {};
 
-export function LoginForm({ next }: { next: string }) {
+type Props = {
+  next: string;
+  providers: { github: boolean; google: boolean };
+  oauthError: string | null;
+};
+
+export function LoginForm({ next, providers, oauthError }: Props) {
   const [state, formAction, pending] = useActionState(loginAction, initial);
 
   return (
     <form action={formAction} className="space-y-3">
+      <OAuthButtons providers={providers} next={next} lang="es" />
+      {oauthError && <p className="text-xs text-danger text-center">{oauthError}</p>}
       <input type="hidden" name="next" value={next} />
       <input
         type="email"

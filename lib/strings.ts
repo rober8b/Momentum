@@ -96,6 +96,30 @@ export const strings = {
     noClient: 'no client',
     addOne: 'add one →',
     loading: 'loading…',
+
+    // Auth — OAuth login
+    authContinueWithGithub: 'continue with GitHub',
+    authContinueWithGoogle: 'continue with Google',
+    authOrDivider: 'or',
+    authErrorOauthNotConfigured: 'this login method is not configured.',
+    authErrorOauthDenied: 'access was denied.',
+    authErrorOauthStateMismatch: 'your login session expired — try again.',
+    authErrorSignupDisabled: 'sign-up is disabled — ask an admin for an invite.',
+    authErrorAccountDisabled: 'this account is disabled.',
+    authErrorOauthExchangeFailed: 'could not complete login with the provider.',
+    authErrorOauthProfileFailed: 'could not fetch your profile from the provider.',
+    authErrorOauthFailed: 'something went wrong — try again.',
+
+    // Settings — connected accounts
+    accountsTitle: 'connected accounts',
+    accountsDescription: 'sign in with these providers without a password.',
+    accountsConnect: 'connect',
+    accountsDisconnect: 'disconnect',
+    accountsConnected: 'connected',
+    accountsNotConnected: 'not connected',
+    accountsLastMethodError: 'you cannot disconnect your only login method.',
+    accountsUnlinkConfirmTitle: 'disconnect account?',
+    accountsUnlinkConfirmDescription: 'you will no longer be able to log in with this provider.',
   },
   es: {
     // App
@@ -191,11 +215,53 @@ export const strings = {
     noClient: 'sin cliente',
     addOne: 'agregar →',
     loading: 'cargando…',
+
+    // Auth — OAuth login
+    authContinueWithGithub: 'continuar con GitHub',
+    authContinueWithGoogle: 'continuar con Google',
+    authOrDivider: 'o',
+    authErrorOauthNotConfigured: 'este método de acceso no está configurado.',
+    authErrorOauthDenied: 'se denegó el acceso.',
+    authErrorOauthStateMismatch: 'tu sesión de login expiró — intentá de nuevo.',
+    authErrorSignupDisabled: 'el registro está deshabilitado — pedile una invitación a un admin.',
+    authErrorAccountDisabled: 'esta cuenta está deshabilitada.',
+    authErrorOauthExchangeFailed: 'no se pudo completar el login con el proveedor.',
+    authErrorOauthProfileFailed: 'no se pudo obtener tu perfil del proveedor.',
+    authErrorOauthFailed: 'algo salió mal — intentá de nuevo.',
+
+    // Settings — connected accounts
+    accountsTitle: 'cuentas conectadas',
+    accountsDescription: 'iniciá sesión con estos proveedores sin contraseña.',
+    accountsConnect: 'conectar',
+    accountsDisconnect: 'desconectar',
+    accountsConnected: 'conectado',
+    accountsNotConnected: 'no conectado',
+    accountsLastMethodError: 'no podés desconectar tu único método de acceso.',
+    accountsUnlinkConfirmTitle: '¿desconectar cuenta?',
+    accountsUnlinkConfirmDescription: 'no vas a poder iniciar sesión con este proveedor.',
   },
 } as const;
 
 export type Lang = 'en' | 'es';
 export type StringKey = keyof typeof strings.en;
+
+const OAUTH_ERROR_KEYS: Record<string, StringKey> = {
+  oauth_not_configured: 'authErrorOauthNotConfigured',
+  oauth_denied: 'authErrorOauthDenied',
+  oauth_state_mismatch: 'authErrorOauthStateMismatch',
+  signup_disabled: 'authErrorSignupDisabled',
+  account_disabled: 'authErrorAccountDisabled',
+  oauth_exchange_failed: 'authErrorOauthExchangeFailed',
+  oauth_profile_failed: 'authErrorOauthProfileFailed',
+  oauth_failed: 'authErrorOauthFailed',
+};
+
+/** Maps an `?error=` query param from the OAuth callback to a localized message, or null if unrecognized. */
+export function oauthErrorMessage(code: string | undefined, lang: Lang = 'en'): string | null {
+  if (!code) return null;
+  const key = OAUTH_ERROR_KEYS[code];
+  return key ? t(key, lang) : null;
+}
 
 export function t(key: StringKey, lang: Lang = 'en'): string {
   return strings[lang][key] ?? strings.en[key];

@@ -1,18 +1,20 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { db, schema } from '@/lib/db';
+import { isProviderConfigured } from '@/lib/oauth';
+import { oauthErrorMessage } from '@/lib/strings';
 import { LoginForm } from './LoginForm';
 
 export const dynamic = 'force-dynamic';
 
-type SearchParams = Promise<{ next?: string }>;
+type SearchParams = Promise<{ next?: string; error?: string }>;
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
 
   // Redirect to setup if no users exist yet
   const [firstUser] = await db.select({ id: schema.users.id }).from(schema.users).limit(1);
@@ -35,7 +37,11 @@ export default async function LoginPage({
           </p>
           <h1 className="text-2xl font-semibold">center</h1>
         </div>
-        <LoginForm next={next ?? '/'} />
+        <LoginForm
+          next={next ?? '/'}
+          providers={{ github: isProviderConfigured('github'), google: isProviderConfigured('google') }}
+          oauthError={oauthErrorMessage(error, 'es')}
+        />
       </div>
     </div>
   );
