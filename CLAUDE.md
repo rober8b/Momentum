@@ -259,6 +259,20 @@ if (!row) notFound();
 3. `npx drizzle-kit push` (dev) o `npx drizzle-kit generate --name <descripcion>` (prod)
 4. Si generaste migración: aplicarla con `psql $DATABASE_URL -f drizzle/000X_<name>.sql` o desde el Railway dashboard
 
+### Migration workflow (post drift-cleanup, 2026-06-11)
+
+`drizzle/` fue resincronizado a un único baseline (`0000_baseline.sql` + `meta/0000_snapshot.json`)
+que representa el schema actual completo — la historia previa tenía 11 tablas creadas vía `push` que
+nunca se capturaron en una migración, lo que rompía `drizzle-kit generate`.
+
+Para que no vuelva a pasar:
+- **`drizzle-kit generate` + commit es el flujo real.** Cada cambio a `lib/db/schema.ts` que vaya a
+  prod debe generar su migración y commitearse junto con el cambio de schema.
+- **`drizzle-kit push` es solo para experimentos descartables locales** (probar una idea rápido). Si
+  el cambio se queda, generá la migración correspondiente antes de seguir — no lo dejes para después.
+- Antes de generar, correr `npx drizzle-kit generate` sin cambios pendientes debería decir
+  `No schema changes, nothing to migrate` — si no, hay drift que resolver primero.
+
 ---
 
 ## Auth flow — exhaustivo
