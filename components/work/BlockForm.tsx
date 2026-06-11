@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createWorkblock } from '@/app/work/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { WorkblockStatus, WorkblockPriority, WorkblockType } from '@/lib/types';
 
 export function BlockForm({ defaultStatus = 'backlog' }: { defaultStatus?: WorkblockStatus }) {
@@ -14,12 +16,13 @@ export function BlockForm({ defaultStatus = 'backlog' }: { defaultStatus?: Workb
   const [priority, setPriority] = useState<WorkblockPriority>('med');
   const [type, setType] = useState<WorkblockType>('task');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     startTransition(async () => {
-      await createWorkblock({
+      const result = await createWorkblock({
         title: title.trim(),
         description: description.trim() || null,
         priority,
@@ -28,6 +31,10 @@ export function BlockForm({ defaultStatus = 'backlog' }: { defaultStatus?: Workb
         client: '',
         links: {},
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setTitle('');
       setDescription('');
       setOpen(false);

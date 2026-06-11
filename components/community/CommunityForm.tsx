@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createCommunityItem, createOrganization } from '@/app/community/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { Organization } from '@/lib/types';
 
 export function CommunityForm({ orgs }: { orgs: Organization[] }) {
@@ -14,6 +16,7 @@ export function CommunityForm({ orgs }: { orgs: Organization[] }) {
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   // New org inline state
   const [newOrgOpen, setNewOrgOpen] = useState(false);
@@ -23,12 +26,16 @@ export function CommunityForm({ orgs }: { orgs: Organization[] }) {
     e.preventDefault();
     if (!title.trim()) return;
     startTransition(async () => {
-      await createCommunityItem({
+      const result = await createCommunityItem({
         title: title.trim(),
         organization_id: orgId || null,
         due_date: dueDate || null,
         description: description.trim() || null,
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setTitle('');
       setDueDate('');
       setDescription('');
@@ -43,7 +50,11 @@ export function CommunityForm({ orgs }: { orgs: Organization[] }) {
     startTransition(async () => {
       const slug = newOrgName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const row = await createOrganization({ name: newOrgName.trim(), slug });
-      if (row?.id) setOrgId(row.id);
+      if (row && 'error' in row) {
+        toast.error(limitReachedMessage(row));
+        return;
+      }
+      if (row && 'id' in row) setOrgId(row.id);
       setNewOrgName('');
       setNewOrgOpen(false);
     });

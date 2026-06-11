@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createProject } from '@/app/projects/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 
 export function ProjectForm() {
   const [open, setOpen] = useState(false);
@@ -12,18 +14,23 @@ export function ProjectForm() {
   const [description, setDescription] = useState('');
   const [nextStep, setNextStep] = useState('');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     startTransition(async () => {
-      await createProject({
+      const result = await createProject({
         name: name.trim(),
         status: 'active',
         description: description.trim() || null,
         next_step: nextStep.trim() || null,
         links: {},
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setName('');
       setDescription('');
       setNextStep('');

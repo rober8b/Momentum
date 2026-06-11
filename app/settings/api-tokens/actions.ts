@@ -7,6 +7,7 @@ import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { generateToken } from '@/lib/api-auth';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 import { ALL_SCOPES } from '@/lib/types';
 import type { ApiScope } from '@/lib/types';
 
@@ -22,8 +23,12 @@ const createSchema = z.object({
  */
 export async function createApiToken(
   input: z.infer<typeof createSchema>,
-): Promise<{ tokenId: string; fullToken: string }> {
+): Promise<LimitReachedError | { tokenId: string; fullToken: string }> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'api_tokens');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'api_tokens', limit: limitCheck.limit! };
+  }
   const parsed = createSchema.parse(input);
 
   const { token, hash, prefix } = generateToken();

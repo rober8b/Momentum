@@ -16,6 +16,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   UserRole,
+  UserPlan,
+  UserPlanStatus,
   UserSettings,
   ScheduleSlot,
   AssignmentStatus,
@@ -44,6 +46,8 @@ export const users = pgTable(
     password_hash: text('password_hash'),
     role: text('role').$type<UserRole>().default('member').notNull(),
     active: boolean('active').default(true).notNull(),
+    plan: text('plan').$type<UserPlan>().default('free').notNull(),
+    plan_status: text('plan_status').$type<UserPlanStatus>().default('active').notNull(),
     settings: jsonb('settings').$type<UserSettings>().default({} as UserSettings).notNull(),
     // Unix timestamp (seconds). Sessions with iat < this value are rejected.
     // Allows per-user session invalidation without rotating SESSION_SECRET.

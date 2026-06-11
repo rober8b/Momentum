@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 import type { WorkblockStatus } from '@/lib/types';
 
 const STATUSES = ['backlog', 'today', 'in-progress', 'blocked', 'done'] as const;
@@ -23,8 +24,12 @@ const workblockSchema = z.object({
   links: z.record(z.string(), z.string()).default({}),
 });
 
-export async function createWorkblock(input: z.infer<typeof workblockSchema>) {
+export async function createWorkblock(input: z.infer<typeof workblockSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'workblocks');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'workblocks', limit: limitCheck.limit! };
+  }
   const parsed = workblockSchema.parse(input);
   const [row] = await db.insert(schema.workblocks).values({ ...parsed, user_id: user.id }).returning({ id: schema.workblocks.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'workblock', entityId: row?.id });

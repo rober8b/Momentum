@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 import type { FreelanceTaskStatus } from '@/lib/types';
 
 const clientSchema = z.object({
@@ -18,8 +19,12 @@ const clientSchema = z.object({
   links: z.record(z.string(), z.string()).default({}),
 });
 
-export async function createClient(input: z.infer<typeof clientSchema>) {
+export async function createClient(input: z.infer<typeof clientSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'freelance_clients');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'freelance_clients', limit: limitCheck.limit! };
+  }
   const parsed = clientSchema.parse(input);
   const [row] = await db.insert(schema.freelanceClients).values({ ...parsed, user_id: user.id }).returning({ id: schema.freelanceClients.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'freelance_client', entityId: row?.id });
@@ -55,8 +60,12 @@ const taskSchema = z.object({
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
-export async function createFreelanceTask(input: z.infer<typeof taskSchema>) {
+export async function createFreelanceTask(input: z.infer<typeof taskSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'freelance_tasks');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'freelance_tasks', limit: limitCheck.limit! };
+  }
   const parsed = taskSchema.parse(input);
   const [row] = await db.insert(schema.freelanceTasks).values({ ...parsed, user_id: user.id }).returning({ id: schema.freelanceTasks.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'freelance_task', entityId: row?.id });

@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 
 const communitySchema = z.object({
   organization_id: z.string().uuid().nullable().optional(),
@@ -19,8 +20,12 @@ const orgSchema = z.object({
   slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/),
 });
 
-export async function createOrganization(input: z.infer<typeof orgSchema>) {
+export async function createOrganization(input: z.infer<typeof orgSchema>): Promise<LimitReachedError | { id: string } | undefined> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'organizations');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'organizations', limit: limitCheck.limit! };
+  }
   const parsed = orgSchema.parse(input);
   const [row] = await db
     .insert(schema.organizations)
@@ -31,8 +36,12 @@ export async function createOrganization(input: z.infer<typeof orgSchema>) {
   return row;
 }
 
-export async function createCommunityItem(input: z.infer<typeof communitySchema>) {
+export async function createCommunityItem(input: z.infer<typeof communitySchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'community_items');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'community_items', limit: limitCheck.limit! };
+  }
   const parsed = communitySchema.parse(input);
   const [row] = await db
     .insert(schema.communityItems)

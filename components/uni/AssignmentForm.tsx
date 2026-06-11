@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createAssignment } from '@/app/uni/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { Subject } from '@/lib/types';
 
 export function AssignmentForm({ subjects }: { subjects: Subject[] }) {
@@ -14,17 +16,22 @@ export function AssignmentForm({ subjects }: { subjects: Subject[] }) {
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !subjectId) return;
     startTransition(async () => {
-      await createAssignment({
+      const result = await createAssignment({
         title: title.trim(),
         subject_id: subjectId,
         due_date: dueDate || null,
         description: description.trim() || null,
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setTitle('');
       setDescription('');
       setDueDate('');

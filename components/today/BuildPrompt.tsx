@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { quickCaptureIdea } from '@/app/build/actions';
 import { cn } from '@/lib/cn';
-import { t } from '@/lib/strings';
+import { t, limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { BuildItem } from '@/lib/types';
 import type { Lang } from '@/lib/strings';
 
@@ -21,11 +22,16 @@ const STATUS_BADGE = {
 export function BuildPrompt({ items, lang = 'en' }: { items: BuildItem[]; lang?: Lang }) {
   const [draft, setDraft] = useState('');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit() {
     if (!draft.trim()) return;
     startTransition(async () => {
-      await quickCaptureIdea(draft.trim());
+      const result = await quickCaptureIdea(draft.trim());
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result, lang));
+        return;
+      }
       setDraft('');
     });
   }

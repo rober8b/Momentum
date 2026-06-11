@@ -4,6 +4,9 @@
 
 export type UserRole = 'admin' | 'member';
 
+export type UserPlan = 'free' | 'pro';
+export type UserPlanStatus = 'active' | 'past_due' | 'cancelled';
+
 export type UserSettings = {
   timezone: string;
   language: 'en' | 'es';
@@ -26,6 +29,8 @@ export type User = {
   display_name: string | null;
   role: UserRole;
   active: boolean;
+  plan: UserPlan;
+  plan_status: UserPlanStatus;
   settings: UserSettings;
   invalidate_sessions_before: number | null;
   created_at: string;

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ALL_SCOPES } from '@/lib/types';
 import type { ApiScope } from '@/lib/types';
 import { createApiToken } from '@/app/settings/api-tokens/actions';
+import { limitReachedMessage } from '@/lib/strings';
 
 type Props = {
   onCreated: (fullToken: string) => void;
@@ -59,12 +60,16 @@ export function ApiTokenForm({ onCreated, onCancel }: Props) {
 
     startTransition(async () => {
       try {
-        const { fullToken } = await createApiToken({
+        const result = await createApiToken({
           name: name.trim(),
           scopes,
           expiresAt: expiresAtISO,
         });
-        onCreated(fullToken);
+        if ('error' in result) {
+          setError(limitReachedMessage(result));
+          return;
+        }
+        onCreated(result.fullToken);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'error al crear el token');
       }

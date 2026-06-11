@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { createBuildItem, updateBuildItem } from '@/app/build/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { BuildItem, BuildType } from '@/lib/types';
 
 const TYPES: BuildType[] = ['hackathon', 'project', 'opinion', 'news', 'portfolio-update', 'open-source', 'demo'];
@@ -26,6 +28,7 @@ export function BuildEditor({
   const [platforms, setPlatforms] = useState<string[]>(existing?.platforms ?? ['x', 'linkedin']);
   const [relatedProject, setRelatedProject] = useState(existing?.related_project ?? '');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function togglePlatform(p: string) {
     setPlatforms(platforms.includes(p) ? platforms.filter((x) => x !== p) : [...platforms, p]);
@@ -48,7 +51,11 @@ export function BuildEditor({
       if (mode === 'edit' && sourceId) {
         await updateBuildItem(sourceId, payload);
       } else {
-        await createBuildItem(payload);
+        const result = await createBuildItem(payload);
+        if (result && 'error' in result) {
+          toast.error(limitReachedMessage(result));
+          return;
+        }
       }
       router.push('/build');
     });

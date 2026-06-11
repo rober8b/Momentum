@@ -1,6 +1,8 @@
 // i18n strings — all UI copy lives here.
 // Usage: import { t } from '@/lib/strings'; t('key', user.settings.language)
 
+import type { LimitedResource } from '@/lib/plans';
+
 export const strings = {
   en: {
     // App
@@ -120,6 +122,31 @@ export const strings = {
     accountsLastMethodError: 'you cannot disconnect your only login method.',
     accountsUnlinkConfirmTitle: 'disconnect account?',
     accountsUnlinkConfirmDescription: 'you will no longer be able to log in with this provider.',
+
+    // Plans & limits
+    planSection: 'plan',
+    planCurrentPlan: 'current plan',
+    planStatusLabel: 'status',
+    planFree: 'free',
+    planPro: 'pro',
+    planStatusActive: 'active',
+    planStatusPastDue: 'past due',
+    planStatusCancelled: 'cancelled',
+    planUsage: 'usage',
+    planSelfHosted: 'self-hosted — unlimited',
+    planUpgrade: 'upgrade',
+    planUpgradeComingSoon: 'upgrading to pro is coming soon.',
+    planUnlimited: 'unlimited',
+    limitReachedTemplate: "you've reached your plan's limit of {limit} {resource}. upgrade to pro for unlimited.",
+    resourceAssignments: 'assignments',
+    resourceWorkblocks: 'workblocks',
+    resourceBuildItems: 'build items',
+    resourceFreelanceClients: 'freelance clients',
+    resourceFreelanceTasks: 'freelance tasks',
+    resourceOwnProjects: 'projects',
+    resourceOrganizations: 'organizations',
+    resourceCommunityItems: 'community items',
+    resourceApiTokens: 'API tokens',
   },
   es: {
     // App
@@ -239,6 +266,31 @@ export const strings = {
     accountsLastMethodError: 'no podés desconectar tu único método de acceso.',
     accountsUnlinkConfirmTitle: '¿desconectar cuenta?',
     accountsUnlinkConfirmDescription: 'no vas a poder iniciar sesión con este proveedor.',
+
+    // Plans & limits
+    planSection: 'plan',
+    planCurrentPlan: 'plan actual',
+    planStatusLabel: 'estado',
+    planFree: 'free',
+    planPro: 'pro',
+    planStatusActive: 'activo',
+    planStatusPastDue: 'pago vencido',
+    planStatusCancelled: 'cancelado',
+    planUsage: 'uso',
+    planSelfHosted: 'self-hosted — ilimitado',
+    planUpgrade: 'mejorar plan',
+    planUpgradeComingSoon: 'la opción de mejorar a pro estará disponible pronto.',
+    planUnlimited: 'ilimitado',
+    limitReachedTemplate: 'alcanzaste el límite de tu plan: {limit} {resource}. actualizá a pro para tener ilimitado.',
+    resourceAssignments: 'TPs',
+    resourceWorkblocks: 'tickets',
+    resourceBuildItems: 'posts de build',
+    resourceFreelanceClients: 'clientes freelance',
+    resourceFreelanceTasks: 'tareas freelance',
+    resourceOwnProjects: 'proyectos',
+    resourceOrganizations: 'organizaciones',
+    resourceCommunityItems: 'compromisos',
+    resourceApiTokens: 'tokens de API',
   },
 } as const;
 
@@ -265,4 +317,24 @@ export function oauthErrorMessage(code: string | undefined, lang: Lang = 'en'): 
 
 export function t(key: StringKey, lang: Lang = 'en'): string {
   return strings[lang][key] ?? strings.en[key];
+}
+
+const RESOURCE_LABEL_KEYS: Record<LimitedResource, StringKey> = {
+  assignments: 'resourceAssignments',
+  workblocks: 'resourceWorkblocks',
+  build_items: 'resourceBuildItems',
+  freelance_clients: 'resourceFreelanceClients',
+  freelance_tasks: 'resourceFreelanceTasks',
+  own_projects: 'resourceOwnProjects',
+  organizations: 'resourceOrganizations',
+  community_items: 'resourceCommunityItems',
+  api_tokens: 'resourceApiTokens',
+};
+
+/** Friendly message for a `{ error: 'limit_reached', resource, limit }` result from a create action. */
+export function limitReachedMessage(error: { resource: LimitedResource; limit: number }, lang: Lang = 'es'): string {
+  const resourceLabel = t(RESOURCE_LABEL_KEYS[error.resource], lang);
+  return t('limitReachedTemplate', lang)
+    .replace('{limit}', String(error.limit))
+    .replace('{resource}', resourceLabel);
 }

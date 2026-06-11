@@ -75,6 +75,8 @@ function rowToUser(row: typeof schema.users.$inferSelect): User {
     display_name: row.display_name,
     role: row.role,
     active: row.active,
+    plan: row.plan,
+    plan_status: row.plan_status,
     settings,
     invalidate_sessions_before: row.invalidate_sessions_before ?? null,
     created_at: row.created_at.toISOString(),

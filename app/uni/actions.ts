@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 
 const dayEnum = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
 const slotSchema = z.object({
@@ -52,8 +53,12 @@ const assignmentSchema = z.object({
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
 });
 
-export async function createAssignment(input: z.infer<typeof assignmentSchema>) {
+export async function createAssignment(input: z.infer<typeof assignmentSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'assignments');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'assignments', limit: limitCheck.limit! };
+  }
   const parsed = assignmentSchema.parse(input);
   const [row] = await db.insert(schema.assignments).values({ ...parsed, user_id: user.id, status: 'todo' }).returning({ id: schema.assignments.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'assignment', entityId: row?.id });

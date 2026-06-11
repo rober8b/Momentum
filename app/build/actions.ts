@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 import type { BuildStatus } from '@/lib/types';
 
 const buildSchema = z.object({
@@ -31,8 +32,12 @@ function toDate(v: string | null | undefined): Date | null {
   return new Date(v);
 }
 
-export async function quickCaptureIdea(title: string) {
+export async function quickCaptureIdea(title: string): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'build_items');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'build_items', limit: limitCheck.limit! };
+  }
   const [row] = await db.insert(schema.buildItems).values({
     user_id: user.id,
     title: title.slice(0, 200),
@@ -45,8 +50,12 @@ export async function quickCaptureIdea(title: string) {
   revalidatePath('/');
 }
 
-export async function createBuildItem(input: z.infer<typeof buildSchema>) {
+export async function createBuildItem(input: z.infer<typeof buildSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'build_items');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'build_items', limit: limitCheck.limit! };
+  }
   const parsed = buildSchema.parse(input);
   const [row] = await db.insert(schema.buildItems).values({
     ...parsed,

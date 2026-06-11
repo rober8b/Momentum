@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { db, schema } from '@/lib/db';
 import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit } from '@/lib/limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,14 @@ export async function POST(request: Request) {
     const imported: string[] = [];
     const errors: Array<{ index: number; error: string }> = [];
 
+    const limitCheck = await checkLimit(userId, 'own_projects');
+    const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
+
     for (let i = 0; i < parsed.data.projects.length; i++) {
+      if (i >= remaining) {
+        errors.push({ index: i, error: `plan limit reached (${limitCheck.limit} projects)` });
+        continue;
+      }
       const p = parsed.data.projects[i];
       try {
         const [row] = await db

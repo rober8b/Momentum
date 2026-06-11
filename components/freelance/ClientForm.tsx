@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/app/freelance/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 
 export function ClientForm() {
   const [open, setOpen] = useState(false);
@@ -12,18 +14,23 @@ export function ClientForm() {
   const [description, setDescription] = useState('');
   const [stack, setStack] = useState('');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     startTransition(async () => {
-      await createClient({
+      const result = await createClient({
         name: name.trim(),
         status: 'active',
         description: description.trim() || null,
         stack: stack.trim() || null,
         links: {},
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setName('');
       setDescription('');
       setStack('');

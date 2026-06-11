@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { checkLimit, type LimitReachedError } from '@/lib/limits';
 
 const projectSchema = z.object({
   name: z.string().min(1),
@@ -16,8 +17,12 @@ const projectSchema = z.object({
   links: z.record(z.string(), z.string()).default({}),
 });
 
-export async function createProject(input: z.infer<typeof projectSchema>) {
+export async function createProject(input: z.infer<typeof projectSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
+  const limitCheck = await checkLimit(user.id, 'own_projects');
+  if (!limitCheck.allowed) {
+    return { error: 'limit_reached', resource: 'own_projects', limit: limitCheck.limit! };
+  }
   const parsed = projectSchema.parse(input);
   const [row] = await db.insert(schema.ownProjects).values({ ...parsed, user_id: user.id }).returning({ id: schema.ownProjects.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'own_project', entityId: row?.id });

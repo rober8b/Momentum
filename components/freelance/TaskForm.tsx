@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createFreelanceTask } from '@/app/freelance/actions';
 import { cn } from '@/lib/cn';
+import { limitReachedMessage } from '@/lib/strings';
+import { useToast } from '@/lib/hooks/useToast';
 import type { FreelanceTaskStatus, WorkblockPriority } from '@/lib/types';
 
 export function TaskForm({
@@ -18,17 +20,22 @@ export function TaskForm({
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<WorkblockPriority>('med');
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     startTransition(async () => {
-      await createFreelanceTask({
+      const result = await createFreelanceTask({
         client_id: clientId,
         title: title.trim(),
         priority,
         status: defaultStatus,
       });
+      if (result && 'error' in result) {
+        toast.error(limitReachedMessage(result));
+        return;
+      }
       setTitle('');
       setOpen(false);
     });
