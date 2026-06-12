@@ -54,9 +54,14 @@ npm run typecheck    # tsc --noEmit (debe ser 0 errors)
 npm run lint         # ESLint
 
 # Drizzle
-npx drizzle-kit push        # Sync schema → DB (dev rápido, sin migración formal)
-npx drizzle-kit generate    # Genera nueva migración .sql en drizzle/ (para prod)
+npx drizzle-kit push        # Sync schema → DB (SOLO experimentos descartables en local)
+npx drizzle-kit generate    # Genera nueva migración .sql en drizzle/ (flujo real, prod)
 npx drizzle-kit studio      # GUI web para explorar la DB
+
+# Migraciones (ver "Migration workflow — automated on deploy" más abajo)
+npm run db:migrate:local    # aplica migraciones pendientes a DATABASE_URL de .env.local
+npm run db:migrate          # idem, lee DATABASE_URL del entorno (lo corre Vercel en cada deploy)
+npm run db:baseline:local   # one-time: marca migraciones existentes como aplicadas sin correrlas
 
 # Verificación previa a deploy
 npm run typecheck && npm run build
@@ -253,25 +258,60 @@ if (!row) notFound();
 | `api_tokens` | Tokens de API para integración MCP/externa. | SHA-256 hash, scopes, revocable |
 | `vault_exports` | Log del cron semanal — qué se exportó y cuándo. | `success` / `failure` / `partial` |
 
-**Para cambiar el schema:**
+**Para cambiar el schema (flujo real, prod):**
 1. Editar `lib/db/schema.ts`
 2. Si agregás un enum value, también editarlo en `lib/types.ts`
-3. `npx drizzle-kit push` (dev) o `npx drizzle-kit generate --name <descripcion>` (prod)
-4. Si generaste migración: aplicarla con `psql $DATABASE_URL -f drizzle/000X_<name>.sql` o desde el Railway dashboard
+3. `npx drizzle-kit generate --name <descripcion>` — genera `drizzle/000X_<descripcion>.sql`
+4. Revisar el SQL generado, commitear junto con el cambio de schema
+5. `git push` → Vercel corre `db:migrate` automáticamente en el build (ver abajo) y aplica la
+   migración a prod. No hace falta correr nada a mano contra Railway.
 
-### Migration workflow (post drift-cleanup, 2026-06-11)
+**`npx drizzle-kit push` es SOLO para experimentos descartables en local** (probar una idea rápido,
+sin generar migración). Si el cambio se queda, generá la migración (`drizzle-kit generate`) antes de
+seguir — **nunca correr `push` contra `DATABASE_URL` de prod**, porque eso aplica el schema sin
+dejar rastro en `drizzle/`, volviendo a romper el tracking de `__drizzle_migrations`.
 
-`drizzle/` fue resincronizado a un único baseline (`0000_baseline.sql` + `meta/0000_snapshot.json`)
-que representa el schema actual completo — la historia previa tenía 11 tablas creadas vía `push` que
-nunca se capturaron en una migración, lo que rompía `drizzle-kit generate`.
+### Migration workflow — automated on deploy (2026-06-12)
 
-Para que no vuelva a pasar:
+Las migraciones ahora se aplican automáticamente en cada deploy de Vercel:
+
+- `npm run vercel-build` (= `npm run db:migrate && next build`) es el build command real en Vercel
+  (Vercel detecta `vercel-build` en `package.json` y lo usa en vez de `build`). `npm run build` /
+  `npm run dev` en local **no** corren migraciones — solo Vercel las corre, y solo si hay env
+  `DATABASE_URL` configurada para ese entorno (Production/Preview).
+- `npm run db:migrate` (`scripts/db-migrate.ts`) usa `migrate()` de `drizzle-orm/postgres-js/migrator`
+  sobre `./drizzle`. Es **idempotente**: si no hay migraciones pendientes (según
+  `drizzle.__drizzle_migrations`), no hace nada. Si `DATABASE_URL` no está seteada, la conexión falla,
+  o una migración tira error → `process.exit(1)` → el build de Vercel falla y el deploy se bloquea
+  (fail loud, nunca silencioso).
+- **Self-host:** si corrés tu propia instancia (no Vercel), corré `npm run db:migrate:local`
+  (lee `.env.local`) después de cada `git pull` que incluya nuevas migraciones en `drizzle/`.
+
+**Para que `drizzle-kit generate` no vuelva a romperse por drift:**
 - **`drizzle-kit generate` + commit es el flujo real.** Cada cambio a `lib/db/schema.ts` que vaya a
   prod debe generar su migración y commitearse junto con el cambio de schema.
-- **`drizzle-kit push` es solo para experimentos descartables locales** (probar una idea rápido). Si
-  el cambio se queda, generá la migración correspondiente antes de seguir — no lo dejes para después.
 - Antes de generar, correr `npx drizzle-kit generate` sin cambios pendientes debería decir
   `No schema changes, nothing to migrate` — si no, hay drift que resolver primero.
+
+### Baselinear una DB existente (fresh prod o recovery de drift)
+
+Si una DB ya tiene el schema completo aplicado vía `push` (o cualquier otra vía) pero **no** tiene la
+tabla `drizzle.__drizzle_migrations`, el primer `migrate()` va a intentar re-correr `0000_baseline.sql`
+(`CREATE TABLE ...`) y falla porque las tablas ya existen.
+
+Fix: `npm run db:baseline` (`scripts/db-baseline.ts`) — crea `drizzle.__drizzle_migrations` (additive,
+`CREATE SCHEMA/TABLE IF NOT EXISTS`) y marca cada entry de `drizzle/meta/_journal.json` como ya
+aplicada (`hash = sha256(archivo .sql)`, `created_at = journal.when`), **sin ejecutar el SQL**. Es
+idempotente — si la tabla ya tiene filas, solo las imprime y no hace nada.
+
+- DB nueva (sin tablas todavía): NO uses `db:baseline` — corré `db:migrate` directo, que va a crear
+  todo desde `0000_baseline.sql`.
+- DB con schema ya aplicado pero sin tracking (caso de hoy, 2026-06-12 — prod corrió `push` antes de
+  tener migraciones automatizadas): correr `db:baseline` (local: `db:baseline:local` con
+  `DATABASE_URL` apuntando a esa DB) **una sola vez**, después `db:migrate` queda al día.
+- Si migraciones y DB vuelven a driftear (alguien corrió `push` contra prod a mano): no hay arreglo
+  automático — hay que comparar `drizzle-kit generate` (debería decir "No schema changes") y si hay
+  diff, decidir manualmente si generar una migración correctiva o re-baselinear.
 
 ---
 
@@ -490,7 +530,8 @@ Esta app es la **capa operacional diaria**. El vault es la **capa de conocimient
 1. Editar `lib/db/schema.ts` — agregar el campo
 2. Editar `lib/types.ts` — actualizar el type `Workblock`
 3. Editar `lib/today.ts:rowToWorkblock` — mapear la nueva columna
-4. `npx drizzle-kit push`
+4. `npx drizzle-kit generate --name add_<columna>_to_workblocks` y commitear la migración generada
+   (`npx drizzle-kit push` solo si estás iterando rápido en local y vas a generar la migración después)
 5. Actualizar el server action en `app/work/actions.ts` si entra al insert/update
 6. Actualizar el form/card si va en UI
 
@@ -526,7 +567,8 @@ UPDATE users SET invalidate_sessions_before = EXTRACT(EPOCH FROM NOW())::bigint 
 1. Editar `lib/db/schema.ts` con el cambio
 2. `npx drizzle-kit generate --name rename_x_to_y`
 3. Revisar manualmente el SQL generado (drizzle-kit a veces sugiere drop+create — confirmar que no perdés data)
-4. Aplicar la migración con `psql $DATABASE_URL -f drizzle/000X_*.sql`
+4. Commitear y `git push` — Vercel aplica la migración en el siguiente deploy (`db:migrate`).
+   Self-host: `npm run db:migrate:local`.
 
 ---
 

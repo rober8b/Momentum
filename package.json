@@ -19,12 +19,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npm run db:migrate && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:seed:demo": "npx tsx --env-file=.env.local scripts/seed-demo.ts",
     "db:seed:minimal": "npx tsx --env-file=.env.local scripts/seed-minimal.ts",
-    "db:reset": "npx tsx --env-file=.env.local scripts/db-reset.ts"
+    "db:reset": "npx tsx --env-file=.env.local scripts/db-reset.ts",
+    "db:migrate": "npx tsx scripts/db-migrate.ts",
+    "db:migrate:local": "npx tsx --env-file=.env.local scripts/db-migrate.ts",
+    "db:baseline": "npx tsx scripts/db-baseline.ts",
+    "db:baseline:local": "npx tsx --env-file=.env.local scripts/db-baseline.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
