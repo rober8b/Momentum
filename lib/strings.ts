@@ -147,6 +147,32 @@ export const strings = {
     resourceOrganizations: 'organizations',
     resourceCommunityItems: 'community items',
     resourceApiTokens: 'API tokens',
+
+    // Onboarding — welcome modal
+    onboardingWelcomeTitle: 'welcome to momentum',
+    onboardingWelcomeDescription: 'your daily operating dashboard, organized around 7 pillars. add items to any of them and they\'ll show up in your Today view.',
+    onboardingPillarsTitle: 'the 7 pillars',
+    onboardingPillarToday: 'your daily aggregator — assignments, tickets, and build queue in one place.',
+    onboardingPillarUni: 'subjects, schedules, and assignments.',
+    onboardingPillarWork: 'kanban board for work tasks.',
+    onboardingPillarFreelance: 'clients and their task lists.',
+    onboardingPillarProjects: 'your own side projects.',
+    onboardingPillarCommunity: 'commitments and events you said yes to.',
+    onboardingPillarBuild: 'ideas → drafts → published posts.',
+    onboardingGetStarted: "let's go",
+    onboardingVaultCta: 'have an Obsidian vault? import it via the MCP server →',
+
+    // Sample data
+    sampleDataTitle: 'sample data',
+    sampleDataDescription: 'load a set of example items across all 7 pillars to explore momentum before adding your own data. fully reversible — remove it anytime.',
+    sampleDataLoad: 'load sample data',
+    sampleDataRemove: 'remove sample data',
+    sampleDataLoaded: 'sample data loaded — check out each section.',
+    sampleDataLoadedPartial: 'sample data loaded — some items were skipped because of your plan limits.',
+    sampleDataAlreadyLoaded: 'sample data is already loaded.',
+    sampleDataRemoved: 'sample data removed.',
+    sampleDataRemoveConfirmTitle: 'remove sample data?',
+    sampleDataRemoveConfirmDescription: 'this deletes all sample items added by "load sample data". your own data is never affected.',
   },
   es: {
     // App
@@ -291,6 +317,32 @@ export const strings = {
     resourceOrganizations: 'organizaciones',
     resourceCommunityItems: 'compromisos',
     resourceApiTokens: 'tokens de API',
+
+    // Onboarding — welcome modal
+    onboardingWelcomeTitle: 'bienvenido a momentum',
+    onboardingWelcomeDescription: 'tu dashboard operacional diario, organizado en 7 pilares. agregá items en cualquiera de ellos y van a aparecer en tu vista Today.',
+    onboardingPillarsTitle: 'los 7 pilares',
+    onboardingPillarToday: 'tu agregador diario — TPs, tickets y cola de build en un solo lugar.',
+    onboardingPillarUni: 'materias, horarios y TPs.',
+    onboardingPillarWork: 'kanban para tareas de trabajo.',
+    onboardingPillarFreelance: 'clientes y sus listas de tareas.',
+    onboardingPillarProjects: 'tus proyectos propios.',
+    onboardingPillarCommunity: 'compromisos y eventos a los que dijiste que sí.',
+    onboardingPillarBuild: 'ideas → drafts → posts publicados.',
+    onboardingGetStarted: 'empezar',
+    onboardingVaultCta: '¿tenés un vault de Obsidian? importalo vía el servidor MCP →',
+
+    // Sample data
+    sampleDataTitle: 'datos de ejemplo',
+    sampleDataDescription: 'cargá un set de items de ejemplo en los 7 pilares para explorar momentum antes de agregar tus propios datos. totalmente reversible — quitalos cuando quieras.',
+    sampleDataLoad: 'cargar datos de ejemplo',
+    sampleDataRemove: 'quitar datos de ejemplo',
+    sampleDataLoaded: 'datos de ejemplo cargados — recorré cada sección.',
+    sampleDataLoadedPartial: 'datos de ejemplo cargados — algunos items se omitieron por el límite de tu plan.',
+    sampleDataAlreadyLoaded: 'los datos de ejemplo ya están cargados.',
+    sampleDataRemoved: 'datos de ejemplo eliminados.',
+    sampleDataRemoveConfirmTitle: '¿quitar datos de ejemplo?',
+    sampleDataRemoveConfirmDescription: 'esto elimina todos los items de ejemplo agregados por "cargar datos de ejemplo". tus propios datos nunca se ven afectados.',
   },
 } as const;
 

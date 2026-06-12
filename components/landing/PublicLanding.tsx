@@ -98,23 +98,6 @@ export function PublicLanding() {
           </div>
         </section>
 
-        {/* Screenshot placeholders */}
-        <section className="mb-20">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {['Today view', 'Work kanban', 'Uni & assignments'].map((label) => (
-              <div
-                key={label}
-                className="flex aspect-video items-center justify-center rounded-xl border border-border bg-surface"
-              >
-                <span className="text-xs text-muted-foreground">{label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            screenshots coming soon
-          </p>
-        </section>
-
         {/* What's inside */}
         <section className="mb-20">
           <h2 className="mb-8 text-center text-xl font-semibold">what&apos;s inside</h2>

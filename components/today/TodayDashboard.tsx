@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { ArrowRight, GraduationCap, Briefcase, Megaphone, FolderKanban, Users, Sparkles } from 'lucide-react';
+import { ArrowRight, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, Sparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ClassCard } from './ClassCard';
 import { AssignmentRow } from './AssignmentRow';
 import { TicketCard } from './TicketCard';
@@ -8,6 +9,15 @@ import { BuildPrompt } from './BuildPrompt';
 import { t } from '@/lib/strings';
 import type { TodayData } from '@/lib/today';
 import type { Lang } from '@/lib/strings';
+
+const PILLAR_LINKS: { href: string; icon: typeof GraduationCap; navKey: Parameters<typeof t>[0] }[] = [
+  { href: '/uni', icon: GraduationCap, navKey: 'navUni' },
+  { href: '/work', icon: Briefcase, navKey: 'navWork' },
+  { href: '/freelance', icon: FolderKanban, navKey: 'navFreelance' },
+  { href: '/projects', icon: Rocket, navKey: 'navProjects' },
+  { href: '/community', icon: Users, navKey: 'navCommunity' },
+  { href: '/build', icon: Megaphone, navKey: 'navBuild' },
+];
 
 export function TodayDashboard({ data, lang = 'en' }: { data: TodayData; lang?: Lang }) {
   const totalItems = data.classes.length + data.assignments.length + data.workblocks.length + data.buildItems.length + data.freelanceTasks.length + data.communityItems.length;
@@ -30,12 +40,26 @@ export function TodayDashboard({ data, lang = 'en' }: { data: TodayData; lang?: 
       </div>
 
       {totalItems === 0 && (
-        <div className="py-16 text-center mb-8">
-          <Sparkles size={40} className="mx-auto mb-4 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-foreground">{t('todayAllClear', lang)}</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            {t('todayGetStarted', lang)}
-          </p>
+        <div className="mb-8">
+          <EmptyState
+            icon={Sparkles}
+            title={t('todayAllClear', lang)}
+            description={t('todayGetStarted', lang)}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {PILLAR_LINKS.map(({ href, icon: Icon, navKey }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-elev px-3 py-1.5 text-xs text-muted-foreground capitalize hover:border-accent hover:text-accent transition-colors"
+                  >
+                    <Icon size={12} />
+                    {t(navKey, lang)}
+                  </Link>
+                ))}
+              </div>
+            }
+          />
         </div>
       )}
 

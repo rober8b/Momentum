@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { IdeaCard } from '@/components/build/IdeaCard';
 import { DraftCard, PublishedRow } from '@/components/build/DraftCard';
 import { DiscardedRow } from '@/components/build/DiscardedRow';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { t } from '@/lib/strings';
 import { rowToBuildItem } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,7 @@ export default async function BuildPage() {
   const scheduled = items.filter((i) => i.status === 'scheduled');
   const published = items.filter((i) => i.status === 'published');
   const discarded = items.filter((i) => i.status === 'discarded');
+  const totalItems = ideas.length + drafts.length + scheduled.length + published.length + discarded.length;
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1400px]">
@@ -48,6 +51,23 @@ export default async function BuildPage() {
         </Link>
       </div>
 
+      {totalItems === 0 && (
+        <EmptyState
+          icon={Lightbulb}
+          title={t('buildNoItems', user.settings.language)}
+          description={t('buildNoItemsHint', user.settings.language)}
+          action={
+            <Link href="/build/new">
+              <Button size="md">
+                <Plus size={14} />
+                nuevo
+              </Button>
+            </Link>
+          }
+        />
+      )}
+
+      {totalItems > 0 && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <Card className="flex flex-col">
           <CardHeader>
@@ -104,6 +124,7 @@ export default async function BuildPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {discarded.length > 0 && (
         <details className="mt-6">
@@ -117,12 +138,6 @@ export default async function BuildPage() {
           </div>
         </details>
       )}
-
-      <div className="mt-6 text-center">
-        <p className="text-xs text-muted-foreground italic">
-          @HooCrypto: "share via DM es el signal god-tier de 2026. creá contenido que la gente quiera mandarle a otros."
-        </p>
-      </div>
     </div>
   );
 }

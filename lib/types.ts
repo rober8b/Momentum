@@ -13,6 +13,7 @@ export type UserSettings = {
   theme: 'dark' | 'light';
   export_enabled: boolean;
   vault_path: string;
+  onboarding_completed: boolean;
 };
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -21,6 +22,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   theme: 'dark',
   export_enabled: false,
   vault_path: '',
+  onboarding_completed: false,
 };
 
 export type User = {

@@ -2,8 +2,10 @@ import { asc, eq } from 'drizzle-orm';
 import { FolderOpen } from 'lucide-react';
 import { ClientCard } from '@/components/freelance/ClientCard';
 import { ClientForm } from '@/components/freelance/ClientForm';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { t } from '@/lib/strings';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
 import { getLastPush, formatPush } from '@/lib/github';
 
@@ -45,13 +47,12 @@ export default async function FreelancePage() {
       </div>
 
       {active.length === 0 ? (
-        <div className="py-16 text-center">
-          <FolderOpen size={40} className="mx-auto mb-4 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-foreground">no hay clientes todavía</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            agregá tu primer cliente para empezar a trackear tareas y estado de proyectos.
-          </p>
-        </div>
+        <EmptyState
+          icon={FolderOpen}
+          title={t('freelanceNoClients', user.settings.language)}
+          description={t('freelanceNoClientsHint', user.settings.language)}
+          action={<ClientForm />}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {active.map((c) => (

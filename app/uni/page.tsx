@@ -6,8 +6,10 @@ import { AssignmentRow } from '@/components/today/AssignmentRow';
 import { AssignmentForm } from '@/components/uni/AssignmentForm';
 import { SubjectForm } from '@/components/uni/SubjectForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { t } from '@/lib/strings';
 import { rowToSubject, rowToAssignment } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
@@ -55,13 +57,12 @@ export default async function UniPage() {
       </div>
 
       {subjects.length === 0 && (
-        <div className="py-16 text-center">
-          <GraduationCap size={40} className="mx-auto mb-4 text-muted-foreground/30" />
-          <p className="text-sm font-medium text-foreground">no hay materias cargadas</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            agregá tu primera materia para ver el horario semanal y trackear TPs.
-          </p>
-        </div>
+        <EmptyState
+          icon={GraduationCap}
+          title={t('uniNoSubjects', user.settings.language)}
+          description={t('uniNoSubjectsHint', user.settings.language)}
+          action={<SubjectForm />}
+        />
       )}
 
       {subjects.length > 0 && (<>

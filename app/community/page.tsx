@@ -1,9 +1,12 @@
 import { and, asc, eq, ne } from 'drizzle-orm';
+import { Users } from 'lucide-react';
 import { CommitmentRow } from '@/components/community/CommitmentRow';
 import { CommunityForm } from '@/components/community/CommunityForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { t } from '@/lib/strings';
 import { rowToCommunityItem, rowToOrganization } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
@@ -73,9 +76,12 @@ export default async function CommunityPage() {
       </div>
 
       {pending.length === 0 && (
-        <p className="text-xs text-muted-foreground py-10 text-center">
-          no hay compromisos pendientes. agregá uno con el botón de arriba.
-        </p>
+        <EmptyState
+          icon={Users}
+          title={t('communityNoPending', user.settings.language)}
+          description={t('communityNoPendingHint', user.settings.language)}
+          action={<CommunityForm orgs={orgs} />}
+        />
       )}
 
       {orgs.filter((o) => byOrg.has(o.id)).map((org) => {

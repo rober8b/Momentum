@@ -21,7 +21,9 @@ export type AuditAction =
   | 'oauth_login'
   | 'oauth_signup'
   | 'oauth_account_linked'
-  | 'oauth_account_unlinked';
+  | 'oauth_account_unlinked'
+  | 'sample_data_loaded'
+  | 'sample_data_removed';
 
 export interface LogAuditParams {
   userId: string | null;

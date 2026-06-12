@@ -3,6 +3,7 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import AppShell from '@/components/AppShell';
 import { ToastProvider } from '@/components/ui/ToastProvider';
+import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
 import { getCurrentUser } from '@/lib/auth';
 
 export const metadata: Metadata = {
@@ -17,6 +18,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ToastProvider>
           <AppShell isAuthenticated={!!user}>{children}</AppShell>
+          {user && !user.settings.onboarding_completed && (
+            <WelcomeModal lang={user.settings.language} />
+          )}
         </ToastProvider>
         <Analytics />
       </body>

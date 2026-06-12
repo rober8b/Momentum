@@ -7,6 +7,7 @@ import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, 
 import { ExportButton } from './ExportButton';
 import { SearchBar } from './search/SearchBar';
 import { cn } from '@/lib/cn';
+import pkg from '@/package.json';
 
 const NAV = [
   { href: '/', label: 'Today', icon: LayoutGrid },
@@ -99,7 +100,7 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
                 <Settings size={12} />
                 api
               </Link>
-              <span className="text-xs text-muted-foreground font-mono">v0.1</span>
+              <span className="text-xs text-muted-foreground font-mono">v{pkg.version}</span>
             </div>
           </div>
           <ExportButton />

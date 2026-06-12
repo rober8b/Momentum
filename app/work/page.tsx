@@ -1,7 +1,11 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
+import { Briefcase } from 'lucide-react';
 import { KanbanBoard } from '@/components/work/KanbanBoard';
+import { BlockForm } from '@/components/work/BlockForm';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
+import { t } from '@/lib/strings';
 import { rowToWorkblock } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +34,14 @@ export default async function WorkPage() {
           {workblocks.length} workblocks totales · {workblocks.filter(w => w.status !== 'done').length} activos
         </p>
       </div>
+      {workblocks.length === 0 && (
+        <EmptyState
+          icon={Briefcase}
+          title={t('workNoWorkblocks', user.settings.language)}
+          description={t('workNoWorkblocksHint', user.settings.language)}
+          action={<div className="w-full max-w-sm"><BlockForm defaultStatus="today" /></div>}
+        />
+      )}
       <KanbanBoard workblocks={workblocks} tz={user.settings.timezone} lang={user.settings.language} />
     </div>
   );

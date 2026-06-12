@@ -15,6 +15,13 @@
       "when": 1781160099558,
       "tag": "0001_add_user_plan_tier",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781306858936,
+      "tag": "0002_add_is_sample_flag",
+      "breakpoints": true
     }
   ]
 }
