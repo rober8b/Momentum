@@ -334,6 +334,22 @@ type UserSettings = {
 
 ---
 
+## Plans & limits (freemium)
+
+`MOMENTUM_MODE` distingue self-host (default, sin límites) de hosted (multi-tenant, límites freemium activos):
+
+- `self_hosted` (default, incluye `undefined`) — `checkLimit()` siempre devuelve `allowed: true` (unlimited). El self-host nunca tiene límites.
+- `hosted` — los límites de `lib/plans.ts:PLAN_LIMITS` se aplican según `user.plan` (`free` | `pro`). `pro` = `null` en todos los recursos = unlimited.
+
+**Para cambiar un número de límite:** editar `PLAN_LIMITS.free` en `lib/plans.ts` — nada más necesita cambiar.
+
+**Dónde está enforced:**
+- Server actions de creación (`app/<pilar>/actions.ts`) — llaman `checkLimit(user.id, resource)` antes del insert; si `allowed: false` devuelven `LimitReachedError` que la UI muestra como mensaje de límite alcanzado.
+- `/api/v1/import/*` — cada endpoint chequea el límite una vez, calcula `remaining`, e importa hasta ese tope; los items que exceden el límite se reportan en `errors[]` con `error: "plan limit reached (...)"` (no abortan el resto del import).
+- `/settings/profile` — `PlanSection` (`components/settings/PlanSection.tsx`) muestra uso actual vs límite por recurso via `getUsageSummary()`.
+
+---
+
 ## API v1
 
 **Base:** `/api/v1/` — auth via Bearer token (`Authorization: Bearer mmt_<64hex>`).
@@ -399,6 +415,7 @@ Herramientas MCP disponibles: `analyze_vault_structure`, `detect_obsidian_vault`
 | `NEXT_PUBLIC_SITE_URL` | URL base para logout redirect | opcional | `http://localhost:3000` |
 | `CRON_SECRET` | Bearer token para cron de Vercel | prod | (string random) |
 | `ALLOW_SIGNUP` | Habilitar ruta `/signup` | opcional | `true` / `false` |
+| `MOMENTUM_MODE` | `self_hosted` (default, unlimited) o `hosted` (activa límites freemium) | opcional | `hosted` |
 | `VAULT_REPO_OWNER` | Owner del repo del vault | post-MVP | `bd-rober` |
 | `VAULT_REPO_NAME` | Nombre del repo | post-MVP | `obsidian-vault` |
 | `GITHUB_TOKEN` | PAT con scope `repo` | post-MVP | `ghp_...` |
