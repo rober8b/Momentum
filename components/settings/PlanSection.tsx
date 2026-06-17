@@ -1,5 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { UpgradeButton } from '@/components/settings/UpgradeButton';
+import { ManageBillingButton } from '@/components/settings/ManageBillingButton';
 import { t } from '@/lib/strings';
 import type { Lang } from '@/lib/strings';
 import type { ResourceUsage } from '@/lib/limits';
@@ -38,12 +40,14 @@ export function PlanSection({
   plan,
   planStatus,
   hosted,
+  billingConfigured,
   usage,
   lang,
 }: {
   plan: UserPlan;
   planStatus: UserPlanStatus;
   hosted: boolean;
+  billingConfigured: boolean;
   usage: ResourceUsage[];
   lang: Lang;
 }) {
@@ -82,9 +86,15 @@ export function PlanSection({
           </div>
         )}
 
-        {hosted && plan === 'free' && (
+        {hosted && (
           <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground">{t('planUpgradeComingSoon', lang)}</p>
+            {plan === 'pro' ? (
+              billingConfigured && <ManageBillingButton lang={lang} />
+            ) : billingConfigured ? (
+              <UpgradeButton lang={lang} />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('planUpgradeComingSoon', lang)}</p>
+            )}
           </div>
         )}
       </CardContent>

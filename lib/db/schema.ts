@@ -48,6 +48,8 @@ export const users = pgTable(
     active: boolean('active').default(true).notNull(),
     plan: text('plan').$type<UserPlan>().default('free').notNull(),
     plan_status: text('plan_status').$type<UserPlanStatus>().default('active').notNull(),
+    polar_customer_id: text('polar_customer_id'),
+    polar_subscription_id: text('polar_subscription_id'),
     settings: jsonb('settings').$type<UserSettings>().default({} as UserSettings).notNull(),
     // Unix timestamp (seconds). Sessions with iat < this value are rejected.
     // Allows per-user session invalidation without rotating SESSION_SECRET.

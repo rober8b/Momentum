@@ -23,7 +23,13 @@ export type AuditAction =
   | 'oauth_account_linked'
   | 'oauth_account_unlinked'
   | 'sample_data_loaded'
-  | 'sample_data_removed';
+  | 'sample_data_removed'
+  | 'billing_checkout_created'
+  | 'billing_portal_opened'
+  | 'billing_subscription_activated'
+  | 'billing_subscription_canceled'
+  | 'billing_subscription_past_due'
+  | 'billing_subscription_revoked';
 
 export interface LogAuditParams {
   userId: string | null;

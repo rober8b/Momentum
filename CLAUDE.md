@@ -390,6 +390,57 @@ type UserSettings = {
 
 ---
 
+## Billing — Polar (Merchant of Record)
+
+Polar (polar.sh) actúa como Merchant of Record — cobra, gestiona IVA/impuestos, y envía webhooks que son la única fuente de verdad del plan del usuario.
+
+**Aplica solo en `MOMENTUM_MODE=hosted`.** Self-hosters dejan todas las vars `POLAR_*` sin setear; `isPolarConfigured()` devuelve `false`, ningún cliente Polar se construye, el webhook route devuelve 404.
+
+### Flujo de plan
+
+```
+Checkout Polar → webhook → users.plan / users.plan_status → checkLimit()
+```
+
+`users.plan` (`free` | `pro`) + `users.plan_status` (`active` | `past_due` | `cancelled`) son la fuente de verdad local. `checkLimit()` en `lib/limits.ts` los lee; en `self_hosted` siempre devuelve `{ allowed: true }`.
+
+### Event → State mapping (webhooks)
+
+| Evento Polar | `plan` | `plan_status` | Notas |
+|---|---|---|---|
+| `subscription.created` | `pro` | `active` | Sub nueva creada |
+| `subscription.active` | `pro` | `active` | Sub activa (nueva o pago recuperado) |
+| `subscription.updated` con `status=active/trialing` | `pro` | `active` | Cambio de estado → activo |
+| `subscription.updated` con `status=past_due` | `pro` | `past_due` | Cambio de estado → vencido |
+| `subscription.updated` con `status=canceled` | `pro` | `cancelled` | Cambio de estado → cancelado |
+| `subscription.updated` con `status=incomplete/unpaid` | _(sin cambio)_ | _(sin cambio)_ | Estados transitorios — ignorados |
+| `subscription.canceled` | `pro` | `cancelled` | Cancelación solicitada; acceso hasta fin del período |
+| `subscription.past_due` | `pro` | `past_due` | Pago fallando, reintentando |
+| `subscription.revoked` | **`free`** | `active` | **Único downgrade** — período terminó o reintentos agotados |
+| `order.paid` | `pro` | `active` | Señal de activación fallback; solo upgrade, nunca downgrade |
+| cualquier otro | _(sin cambio)_ | _(sin cambio)_ | Ignorado, 200 acked |
+
+### Archivos clave de billing
+
+| Archivo | Rol |
+|---------|-----|
+| `lib/polar.ts` | Client Polar (lazy), `isPolarConfigured()`, `getSiteUrl()` |
+| `app/settings/billing/actions.ts` | `createCheckoutSession()` + `openCustomerPortal()` |
+| `app/api/webhooks/polar/route.ts` | Webhook handler — firma, switch de eventos, update DB |
+| `components/settings/UpgradeButton.tsx` | Botón upgrade para plan `free` |
+| `components/settings/ManageBillingButton.tsx` | Botón portal para plan `pro` |
+| `components/settings/PlanSection.tsx` | Renderiza plan/status/uso + botones según estado |
+
+### Setup en Polar (sandbox primero)
+
+1. Crear organización en `https://sandbox.polar.sh`
+2. Crear producto recurrente "Pro" → copiar el Product ID → `POLAR_PRO_PRODUCT_ID`
+3. Crear Organization Access Token → `POLAR_ACCESS_TOKEN`
+4. En Webhooks, crear endpoint apuntando a `<NEXT_PUBLIC_SITE_URL>/api/webhooks/polar`, suscribir a `subscription.*` y `order.paid` → copiar el secret → `POLAR_WEBHOOK_SECRET`
+5. Setear `POLAR_SERVER=sandbox` (default) o `production` para prod
+
+---
+
 ## API v1
 
 **Base:** `/api/v1/` — auth via Bearer token (`Authorization: Bearer mmt_<64hex>`).

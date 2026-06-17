@@ -3,6 +3,7 @@ import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { isProviderConfigured } from '@/lib/oauth';
 import { getUsageSummary, isHostedMode } from '@/lib/limits';
+import { isPolarConfigured } from '@/lib/polar';
 import { t } from '@/lib/strings';
 import { ProfileForm } from '@/components/settings/ProfileForm';
 import { ConnectedAccounts } from '@/components/settings/ConnectedAccounts';
@@ -11,8 +12,13 @@ import { SampleDataSection } from '@/components/settings/SampleDataSection';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>;
+}) {
   const user = await requireUser();
+  const { checkout } = await searchParams;
 
   const hosted = isHostedMode();
   const [[userRow], accounts, usage, [sampleSubject]] = await Promise.all([
@@ -36,10 +42,17 @@ export default async function ProfilePage() {
       </div>
       <ProfileForm user={user} />
 
+      {checkout === 'success' && (
+        <div className="rounded-lg border border-accent/30 bg-accent/10 p-3 text-sm text-foreground">
+          {t('billingCheckoutSuccess', user.settings.language)}
+        </div>
+      )}
+
       <PlanSection
         plan={user.plan}
         planStatus={user.plan_status}
         hosted={hosted}
+        billingConfigured={isPolarConfigured()}
         usage={usage}
         lang={user.settings.language}
       />

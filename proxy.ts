@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const COOKIE_NAME = 'momentum_session';
 
-const PUBLIC_PATHS = ['/', '/login', '/setup', '/forgot-password', '/reset-password', '/verify-email', '/api/auth'];
+const PUBLIC_PATHS = ['/', '/login', '/setup', '/forgot-password', '/reset-password', '/verify-email', '/api/auth', '/api/webhooks/polar'];
 const CRON_PATHS = ['/api/export'];
 // All /api/v1/* routes manage their own auth (Bearer token or session cookie).
 // The proxy must not block them; each handler calls requireApiToken() or verifySession().
