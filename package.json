@@ -29,7 +29,10 @@
     "db:migrate": "npx tsx scripts/db-migrate.ts",
     "db:migrate:local": "npx tsx --env-file=.env.local scripts/db-migrate.ts",
     "db:baseline": "npx tsx scripts/db-baseline.ts",
-    "db:baseline:local": "npx tsx --env-file=.env.local scripts/db-baseline.ts"
+    "db:baseline:local": "npx tsx --env-file=.env.local scripts/db-baseline.ts",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:down:volume": "docker compose -f docker-compose.dev.yml down -v"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

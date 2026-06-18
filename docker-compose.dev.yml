@@ -1,0 +1,25 @@
+# Local development Postgres — NOT for production.
+#
+# These credentials are intentionally simple and committed to the repo.
+# They are only used for the local Docker DB; they are not secrets.
+# Production uses Railway Postgres configured via Vercel environment variables.
+#
+# Usage:
+#   npm run db:up         — start (detached)
+#   npm run db:down       — stop (keeps volume / data)
+#   npm run db:down:volume — stop and wipe all data (fresh start)
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: momentum
+      POSTGRES_PASSWORD: momentum
+      POSTGRES_DB: momentum
+    ports:
+      - "5432:5432"
+    volumes:
+      - momentum_pg_data:/var/lib/postgresql/data
+
+volumes:
+  momentum_pg_data:

@@ -53,6 +53,11 @@ npm run build        # production build
 npm run typecheck    # tsc --noEmit (debe ser 0 errors)
 npm run lint         # ESLint
 
+# Local Postgres (Docker) — ver "Local dev database" más abajo
+npm run db:up           # arranca el contenedor Postgres local (docker-compose.dev.yml)
+npm run db:down         # detiene el contenedor, conserva los datos (volumen)
+npm run db:down:volume  # detiene y BORRA todos los datos (fresh start)
+
 # Drizzle
 npx drizzle-kit push        # Sync schema → DB (SOLO experimentos descartables en local)
 npx drizzle-kit generate    # Genera nueva migración .sql en drizzle/ (flujo real, prod)
@@ -312,6 +317,69 @@ idempotente — si la tabla ya tiene filas, solo las imprime y no hace nada.
 - Si migraciones y DB vuelven a driftear (alguien corrió `push` contra prod a mano): no hay arreglo
   automático — hay que comparar `drizzle-kit generate` (debería decir "No schema changes") y si hay
   diff, decidir manualmente si generar una migración correctiva o re-baselinear.
+
+---
+
+## Local dev database (Docker)
+
+**Default para desarrollo local.** Un Postgres 16 en Docker completamente separado de Railway/prod. Las credenciales son locales y están commiteadas intencionalmente — no son secretos.
+
+```
+Host:     localhost:5432
+User:     momentum
+Password: momentum
+DB:       momentum
+URL:      postgres://momentum:momentum@localhost:5432/momentum
+```
+
+### Bootstrap (primera vez o reset)
+
+```bash
+# 1. Asegurarse de tener Docker Desktop corriendo
+npm run db:up              # arranca el contenedor
+# 2. Apuntar .env.local a la DB local (ver .env.example)
+#    DATABASE_URL=postgres://momentum:momentum@localhost:5432/momentum
+npm run db:migrate:local   # aplica las 4 migraciones → crea todas las tablas
+# 3. Opcional: cargar datos de prueba
+npm run db:seed:demo       # seed con data de ejemplo
+```
+
+No hace falta `db:baseline` en este flujo: la DB arranca vacía y `migrate()` crea `drizzle.__drizzle_migrations` por su cuenta aplicando cada migración desde cero.
+
+### Ciclo diario
+
+```bash
+npm run db:up     # si el contenedor no está corriendo (persiste entre reinicios si no se bajó con -v)
+npm run dev       # el app levanta contra la DB local
+```
+
+### Reset total (borrar toda la data local)
+
+```bash
+npm run db:down:volume    # baja el contenedor Y borra el volumen
+npm run db:up             # recrea el contenedor con DB vacía
+npm run db:migrate:local  # vuelve a aplicar el schema
+```
+
+### Apuntar temporalmente a prod (Railway) para debug
+
+1. Editar `.env.local`: cambiar `DATABASE_URL` a la URL de Railway
+2. Hacer lo que sea necesario
+3. **Volver a la URL local antes de correr seeds, resets, o cualquier mutación**
+
+⚠️ Riesgo real: cualquier `npm run db:seed:*`, `db:reset`, o migración mal aplicada contra Railway afecta la DB de producción. La URL local es el default; Railway es opt-in explícito.
+
+### .env.local — qué poner
+
+```bash
+# DB local (Docker) — DEFAULT para desarrollo
+DATABASE_URL=postgres://momentum:momentum@localhost:5432/momentum
+
+# Si necesitás debuggear contra Railway prod, reemplazás esto temporalmente
+# con la URL de Railway → Variables → DATABASE_URL
+```
+
+El archivo `docker-compose.dev.yml` está en la raíz del repo. No afecta Vercel ni Railway en ningún deploy.
 
 ---
 
