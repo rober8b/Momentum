@@ -8,6 +8,7 @@
 
 import 'server-only';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
@@ -109,6 +110,29 @@ export async function requireUser(): Promise<User> {
   }
 
   return rowToUser(row);
+}
+
+/**
+ * Like requireUser() but additionally requires role === 'admin'.
+ *
+ * Layered defense for the /admin segment:
+ *  - proxy.ts (Edge) already guarantees a valid session cookie before any /admin/*
+ *    handler runs, but the cookie carries only the userId+HMAC — NOT the role — so
+ *    role gating cannot happen at the Edge without a DB round-trip. It is enforced
+ *    here, in the Node layer, instead.
+ *  - Call this at the top of the /admin layout, every /admin page, and every admin
+ *    server action. A non-admin (member) is redirected to '/' and never sees admin
+ *    content or is able to invoke an admin mutation.
+ *
+ * Throws 'NOT_SIGNED_IN' (via requireUser) if unauthenticated; redirects to '/' if
+ * authenticated but not an admin.
+ */
+export async function requireAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (user.role !== 'admin') {
+    redirect('/');
+  }
+  return user;
 }
 
 /**

@@ -29,7 +29,10 @@ export type AuditAction =
   | 'billing_subscription_activated'
   | 'billing_subscription_canceled'
   | 'billing_subscription_past_due'
-  | 'billing_subscription_revoked';
+  | 'billing_subscription_revoked'
+  | 'admin_user_activated'
+  | 'admin_user_deactivated'
+  | 'admin_user_role_changed';
 
 export interface LogAuditParams {
   userId: string | null;

@@ -12,6 +12,13 @@ const CRON_PATHS = ['/api/export'];
 // The proxy must not block them; each handler calls requireApiToken() or verifySession().
 const API_V1_PREFIX = '/api/v1';
 
+// NOTE on /admin: this proxy gates by *authentication* only (a valid session
+// cookie is required, since /admin is not in PUBLIC_PATHS). It cannot gate by
+// *role* — the cookie carries only userId+HMAC, not the role, and querying the
+// DB from the Edge runtime is intentionally avoided. Role enforcement for the
+// admin segment lives in the Node layer via requireAdmin() (lib/auth.ts), called
+// in app/admin/layout.tsx, every admin page, and every admin server action.
+
 function base64UrlEncode(bytes: ArrayBuffer): string {
   const arr = new Uint8Array(bytes);
   let bin = '';

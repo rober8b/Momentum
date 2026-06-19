@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal, Settings, User } from 'lucide-react';
+import { LayoutGrid, GraduationCap, Briefcase, Megaphone, FolderKanban, Rocket, Users, LogOut, MoreHorizontal, Settings, User, Shield } from 'lucide-react';
 import { ExportButton } from './ExportButton';
 import { SearchBar } from './search/SearchBar';
 import { cn } from '@/lib/cn';
@@ -22,7 +22,7 @@ const NAV = [
 const MOBILE_NAV = NAV.filter((i) => !['/projects', '/community'].includes(i.href));
 const MORE_NAV = NAV.filter((i) => ['/projects', '/community'].includes(i.href));
 
-export default function AppShell({ children, isAuthenticated }: { children: React.ReactNode; isAuthenticated?: boolean }) {
+export default function AppShell({ children, isAuthenticated, isAdmin }: { children: React.ReactNode; isAuthenticated?: boolean; isAdmin?: boolean }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -84,6 +84,16 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
               salir
             </a>
             <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Admin"
+                >
+                  <Shield size={12} />
+                  admin
+                </Link>
+              )}
               <Link
                 href="/settings/profile"
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -177,6 +187,19 @@ export default function AppShell({ children, isAuthenticated }: { children: Reac
                     </Link>
                   );
                 })}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMoreOpen(false)}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors',
+                      pathname.startsWith('/admin') ? 'text-accent' : 'text-muted-foreground hover:text-foreground hover:bg-surface-elev',
+                    )}
+                  >
+                    <Shield size={14} />
+                    admin
+                  </Link>
+                )}
               </div>
             </>
           )}
