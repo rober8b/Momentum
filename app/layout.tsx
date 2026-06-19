@@ -17,7 +17,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="es" className="dark">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ToastProvider>
-          <AppShell isAuthenticated={!!user} isAdmin={user?.role === 'admin'}>{children}</AppShell>
+          <AppShell
+            isAuthenticated={!!user}
+            isAdmin={user?.role === 'admin'}
+            userLabel={user?.display_name || user?.email || undefined}
+          >
+            {children}
+          </AppShell>
           {user && !user.settings.onboarding_completed && (
             <WelcomeModal lang={user.settings.language} />
           )}

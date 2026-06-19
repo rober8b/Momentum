@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/cn';
 
 type ExportResult = {
   week: { start: string; end: string };
@@ -10,7 +11,7 @@ type ExportResult = {
   files: { path: string; content: string }[];
 };
 
-export function ExportButton() {
+export function ExportButton({ className, onDone }: { className?: string; onDone?: () => void }) {
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
 
@@ -27,6 +28,7 @@ export function ExportButton() {
         alert('Export failed — ver consola.');
       } finally {
         setBusy(false);
+        onDone?.();
       }
     });
   }
@@ -66,7 +68,10 @@ export function ExportButton() {
       type="button"
       onClick={handleExport}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition-colors disabled:opacity-50"
+      className={cn(
+        'inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition-colors disabled:opacity-50',
+        className,
+      )}
       title="Export weekly to vault"
     >
       {busy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
