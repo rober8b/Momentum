@@ -23,6 +23,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:seed:demo": "npx tsx --env-file=.env.local scripts/seed-demo.ts",
     "db:seed:minimal": "npx tsx --env-file=.env.local scripts/seed-minimal.ts",
     "db:reset": "npx tsx --env-file=.env.local scripts/db-reset.ts",
@@ -61,6 +63,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }
