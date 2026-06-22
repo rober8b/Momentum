@@ -722,29 +722,102 @@ Si `DATABASE_URL` no está seteada (ej. un fork self-host que no quiere este wor
 limpio sin fallar. Si falta `BACKUP_ENCRYPTION_KEY` pero sí está `DATABASE_URL`, el job **falla fuerte**
 (nunca sube un dump sin encriptar).
 
-### Restore — paso a paso
+### Restore drill — contra el Postgres local de Docker
 
-1. Descargar el artifact (desde la run de Actions, o `gh run download <run-id> -n db-backup-<fecha>`).
-2. Desencriptar:
-   ```bash
-   openssl enc -d -aes-256-cbc -pbkdf2 -in backup-<fecha>.dump.enc -out backup.dump -pass pass:'<BACKUP_ENCRYPTION_KEY>'
-   ```
-3. Restaurar:
-   - **DB nueva/vacía** (ej. Railway recién provisionado):
-     ```bash
-     pg_restore --no-owner --no-privileges -d "$DATABASE_URL" backup.dump
-     ```
-   - **DB existente que se quiere sobreescribir** (recovery real, perdiste prod):
-     ```bash
-     pg_restore --clean --if-exists --no-owner --no-privileges -d "$DATABASE_URL" backup.dump
-     ```
-4. Verificar antes de confiar: correr el restore primero contra una DB local/descartable (ej. `db:up` local
-   y un `DATABASE_URL` apuntando ahí) y chequear que las tablas clave tengan data esperada, antes de tocar
-   prod.
+**No hace falta tener `pg_dump`/`pg_restore` instalados.** Todo este repo (y el workflow de backup) los
+corre vía Docker (`postgres:16-alpine`), así que el drill de restore usa el mismo approach — solo necesitás
+Docker Desktop corriendo. Esto es exactamente lo que se validó al construir el workflow.
 
-El paso 4 del workflow (`Verify restore into scratch DB`) ya hace exactamente esto en cada corrida — si esa
-verificación falla, el job falla y no sube el backup, así que un backup que llegó a subirse ya pasó por un
-restore real al menos una vez.
+**0. Prerequisito — DB local arriba y vacía/descartable:**
+
+```bash
+npm run db:up   # si el contenedor local no está corriendo (ver "Local dev database" arriba)
+```
+
+Las credenciales del Postgres local son `postgres://momentum:momentum@localhost:5432/momentum` (ya
+documentadas arriba — no son secretas, son fijas para dev).
+
+**1. Descargar el artifact:**
+
+- GitHub → repo → Actions → la run de `DB Backup` que quieras → al final de la página, sección
+  "Artifacts" → descargar `db-backup-<fecha>.zip` → descomprimir, te queda `backup-<fecha>.dump.enc`.
+- O con `gh` CLI si lo tenés instalado: `gh run download <run-id> -n db-backup-<fecha>`.
+
+**2. Desencriptar** (necesitás el valor de `BACKUP_ENCRYPTION_KEY` — está en GitHub → repo → Settings →
+Secrets and variables → Actions, pero los secrets no se pueden leer una vez seteados; tiene que venir de
+donde lo guardaste — password manager):
+
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 \
+  -in backup-<fecha>.dump.enc \
+  -out backup.dump \
+  -pass pass:'<pegar BACKUP_ENCRYPTION_KEY acá>'
+```
+
+Si la passphrase está mal, `openssl` tira `bad decrypt` — no genera un archivo corrupto silenciosamente.
+
+**3. Restaurar contra la DB local (vía Docker, sin instalar nada):**
+
+En **Windows / Git Bash**, prefijar los comandos `docker cp` y `docker exec` con `MSYS_NO_PATHCONV=1` —
+sin eso, Git Bash traduce `/tmp/backup.dump` a un path de Windows y el contenedor no encuentra el archivo
+(`pg_restore: error: could not open input file`). En macOS/Linux esto no hace falta, es un no-op ahí.
+
+```bash
+# Copiar el dump a un contenedor temporal con el cliente pg_restore (evita el quirk de paths
+# Windows/Git-Bash con volume mounts — usar docker cp en vez de -v)
+docker create --name pgrestore-tmp --network host postgres:16-alpine sleep 60
+docker start pgrestore-tmp
+MSYS_NO_PATHCONV=1 docker cp backup.dump pgrestore-tmp:/tmp/backup.dump
+
+# Restaurar — contra la DB local vacía, sin --clean (no hay nada que limpiar)
+MSYS_NO_PATHCONV=1 docker exec pgrestore-tmp pg_restore --no-owner --no-privileges \
+  -d postgresql://momentum:momentum@localhost:5432/momentum \
+  /tmp/backup.dump
+
+docker rm -f pgrestore-tmp
+```
+
+Verificado end-to-end armando este runbook (dump real → cp → restore → query) — `MSYS_NO_PATHCONV=1` es lo
+que lo destraba en este entorno.
+
+**4. Verificar que el restore sirvió de algo real** (no solo "no tiró error" — confirmar que hay data):
+
+```bash
+docker run --rm --network host postgres:16-alpine \
+  psql postgresql://momentum:momentum@localhost:5432/momentum \
+  -c "select count(*) from users;" \
+  -c "select count(*) from workblocks;"
+```
+
+Si esos counts coinciden con lo que esperás de prod al momento del backup, el restore es bueno. Si el
+restore falla en el paso 3, **el backup no sirve** — no asumas que está bien solo porque se subió (aunque
+el workflow ya lo verificó en CI antes de subirlo, repetir el drill localmente de vez en cuando confirma
+que el procedimiento documentado — no solo el de CI — sigue funcionando).
+
+**5. Reset antes de repetir el drill** (la DB local queda con los datos del dump restaurado):
+
+```bash
+npm run db:down:volume   # borra todo, contenedor + volumen
+npm run db:up
+npm run db:migrate:local # vuelve a crear el schema vacío
+```
+
+### Restore real contra prod (recovery — perdiste la DB de Railway)
+
+Mismos pasos 1-2 (descargar + desencriptar). Para el paso 3, contra una DB de Railway:
+
+- **DB nueva/vacía** (Railway recién provisionado): mismo comando del paso 3 arriba, pero con
+  `-d "$DATABASE_URL"` apuntando a Railway en vez de `localhost`.
+- **DB existente que se quiere sobreescribir** (ya tiene schema, querés pisarlo): agregar
+  `--clean --if-exists` al `pg_restore` para que dropee los objetos existentes antes de recrearlos.
+
+**Practicá el drill local (pasos 0-5) antes de necesitarlo de verdad contra prod** — un restore que nunca
+corriste fuera de CI no es un backup confiable, es una esperanza.
+
+El paso "Verify restore into scratch DB" del workflow ya hace este mismo restore (contra un Postgres
+descartable, no local) en cada corrida — si esa verificación falla, el job falla y no sube el backup, así
+que un backup que llegó a subirse ya pasó por un restore real al menos una vez en CI. El drill de arriba es
+para verificarlo *vos* localmente, no solo confiar en que CI lo hizo.
 
 ### Retención
 
