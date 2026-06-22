@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
+import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
 import { checkLimit } from '@/lib/limits';
 
@@ -34,6 +35,7 @@ const importSchema = z.object({
 export async function POST(request: Request) {
   try {
     const { userId, tokenId } = await requireApiToken(request, ['uni:write']);
+    await enforceApiRateLimit(tokenId, 'import/assignments');
 
     const body = await request.json().catch(() => null);
     const parsed = importSchema.safeParse(body);
@@ -116,7 +118,10 @@ export async function POST(request: Request) {
     return Response.json({ imported: importedIds.length, ids: importedIds, errors });
   } catch (err) {
     if (err instanceof ApiAuthError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      return Response.json(
+        { error: err.message, code: err.code, ...(err.retryAfter ? { retry_after: err.retryAfter } : {}) },
+        { status: err.status, headers: err.retryAfter ? { 'Retry-After': String(err.retryAfter) } : undefined },
+      );
     }
     console.error('[api/v1/import/assignments]', err);
     return Response.json({ error: 'Internal server error', code: 'internal_error' }, { status: 500 });

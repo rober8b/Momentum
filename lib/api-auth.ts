@@ -9,8 +9,10 @@ export { ALL_SCOPES } from '@/lib/types';
 export class ApiAuthError extends Error {
   constructor(
     message: string,
-    public readonly status: 401 | 403,
+    public readonly status: 401 | 403 | 429,
     public readonly code: string,
+    // Seconds until the caller should retry. Only set for 429 (rate limited) errors.
+    public readonly retryAfter?: number,
   ) {
     super(message);
     this.name = 'ApiAuthError';

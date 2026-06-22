@@ -333,6 +333,23 @@ export const apiTokens = pgTable(
   ],
 );
 
+// ---------- API RATE LIMITING ----------
+
+// One row per request to a rate-limited API v1 route. Mirrors the login_attempts
+// pattern: a sliding-window count over recent rows, with old rows opportunistically
+// cleaned up. See lib/rate-limits.ts for the tunable window/threshold and
+// lib/api-rate-limit.ts for the enforcement logic.
+export const apiRateLimitHits = pgTable(
+  'api_rate_limit_hits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    token_id: uuid('token_id').notNull().references(() => apiTokens.id, { onDelete: 'cascade' }),
+    route: text('route').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('api_rate_limit_hits_token_idx').on(t.token_id, t.created_at)],
+);
+
 // ---------- OAUTH ACCOUNTS ----------
 
 export const oauthAccounts = pgTable(
