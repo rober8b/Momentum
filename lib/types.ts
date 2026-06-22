@@ -258,3 +258,51 @@ export type VaultExport = {
   status: 'success' | 'failure' | 'partial';
   error: string | null;
 };
+
+// ---------- DYNAMIC PILLARS ----------
+// See docs/DYNAMIC_PILLARS.md for the design this implements.
+
+export type PillarViewType = 'list' | 'kanban' | 'grid' | 'custom';
+
+export type PillarStatusStep = {
+  key: string;
+  label: string;
+  color?: string;
+  is_terminal?: boolean;
+};
+
+// View-type-specific settings. Shape is informal (not DB-enforced) — see
+// docs/DYNAMIC_PILLARS.md "config shape per view type".
+export type PillarConfig = Record<string, unknown>;
+
+export type Pillar = {
+  id: string;
+  key: string;
+  name: string;
+  icon: string | null;
+  description: string | null;
+  position: number;
+  view_type: PillarViewType;
+  status_workflow: PillarStatusStep[];
+  config: PillarConfig;
+  source_template: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PillarItem = {
+  id: string;
+  pillar_id: string;
+  parent_item_id: string | null;
+  is_container: boolean;
+  title: string;
+  description: string | null;
+  status: string;
+  due_date: string | null;
+  completed_at: string | null;
+  position: number;
+  fields: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};

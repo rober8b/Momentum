@@ -13,6 +13,7 @@ import {
   bigint,
   index,
   uniqueIndex,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import type {
   UserRole,
@@ -32,6 +33,9 @@ import type {
   CommunityStatus,
   ApiScope,
   OAuthProvider,
+  PillarViewType,
+  PillarStatusStep,
+  PillarConfig,
 } from '@/lib/types';
 
 // ---------- USERS ----------
@@ -367,6 +371,67 @@ export const oauthAccounts = pgTable(
   ],
 );
 
+// ---------- DYNAMIC PILLARS ----------
+// Additive, not yet read/written by the app — see docs/DYNAMIC_PILLARS.md.
+// The 7 existing pillar tables above are untouched; this is a parallel engine
+// proven on Projects first (Sprint B), with no cutover yet.
+
+export const pillars = pgTable(
+  'pillars',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    icon: text('icon'),
+    description: text('description'),
+    position: integer('position').default(0).notNull(),
+    view_type: text('view_type').$type<PillarViewType>().default('list').notNull(),
+    status_workflow: jsonb('status_workflow').$type<PillarStatusStep[]>().default([]).notNull(),
+    config: jsonb('config').$type<PillarConfig>().default({}).notNull(),
+    source_template: text('source_template'),
+    is_archived: boolean('is_archived').default(false).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('pillars_user_idx').on(t.user_id, t.position),
+    uniqueIndex('pillars_user_key_idx').on(t.user_id, t.key),
+  ],
+);
+
+export const pillarItems = pgTable(
+  'pillar_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    pillar_id: uuid('pillar_id').notNull().references(() => pillars.id, { onDelete: 'cascade' }),
+    // Self-referencing FK — AnyPgColumn breaks the circular type inference (drizzle's documented pattern).
+    parent_item_id: uuid('parent_item_id').references((): AnyPgColumn => pillarItems.id, { onDelete: 'cascade' }),
+    // Explicit discriminator — a container declares itself; the renderer never infers
+    // "this is a group" from whether anything points at it (see docs/DYNAMIC_PILLARS.md).
+    is_container: boolean('is_container').default(false).notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    // Free text, validated against the owning pillar's status_workflow at the app layer (Zod) —
+    // not a DB enum, since the workflow itself is per-pillar data, not a fixed type.
+    status: text('status').notNull(),
+    due_date: date('due_date'),
+    completed_at: timestamp('completed_at', { withTimezone: true }),
+    position: integer('position').default(0).notNull(),
+    is_sample: boolean('is_sample').default(false).notNull(),
+    // Pillar-specific fields: priority, platforms, links, metrics, stack, schedule, etc.
+    fields: jsonb('fields').$type<Record<string, unknown>>().default({}).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('pillar_items_user_pillar_idx').on(t.user_id, t.pillar_id),
+    index('pillar_items_pillar_status_idx').on(t.pillar_id, t.status),
+    index('pillar_items_parent_idx').on(t.parent_item_id),
+  ],
+);
+
 // ---------- TYPES ----------
 
 export type UserRow = typeof users.$inferSelect;
@@ -393,3 +458,7 @@ export type ApiTokenRow = typeof apiTokens.$inferSelect;
 export type ApiTokenInsert = typeof apiTokens.$inferInsert;
 export type OAuthAccountRow = typeof oauthAccounts.$inferSelect;
 export type OAuthAccountInsert = typeof oauthAccounts.$inferInsert;
+export type PillarRow = typeof pillars.$inferSelect;
+export type PillarInsert = typeof pillars.$inferInsert;
+export type PillarItemRow = typeof pillarItems.$inferSelect;
+export type PillarItemInsert = typeof pillarItems.$inferInsert;
