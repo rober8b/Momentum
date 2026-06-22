@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 import { GraduationCap } from 'lucide-react';
 import { ScheduleGrid } from '@/components/uni/ScheduleGrid';
 import { AssignmentRow } from '@/components/today/AssignmentRow';
@@ -7,6 +7,7 @@ import { AssignmentForm } from '@/components/uni/AssignmentForm';
 import { SubjectForm } from '@/components/uni/SubjectForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { t } from '@/lib/strings';
@@ -14,10 +15,19 @@ import { rowToSubject, rowToAssignment } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
-export default async function UniPage() {
-  const user = await requireUser();
+const DONE_PAGE_SIZE = 20;
 
-  const [subjectsRows, assignmentsRows] = await Promise.all([
+export default async function UniPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ donePage?: string }>;
+}) {
+  const user = await requireUser();
+  const { donePage: donePageParam } = await searchParams;
+  const donePage = Math.max(1, Number.parseInt(donePageParam ?? '1', 10) || 1);
+  const doneOffset = (donePage - 1) * DONE_PAGE_SIZE;
+
+  const [subjectsRows, activeRows, doneRows, [{ count: doneCount }]] = await Promise.all([
     db
       .select()
       .from(schema.subjects)
@@ -26,20 +36,31 @@ export default async function UniPage() {
     db
       .select()
       .from(schema.assignments)
-      .where(eq(schema.assignments.user_id, user.id))
+      .where(and(eq(schema.assignments.user_id, user.id), ne(schema.assignments.status, 'done')))
       .orderBy(asc(schema.assignments.due_date)),
+    db
+      .select()
+      .from(schema.assignments)
+      .where(and(eq(schema.assignments.user_id, user.id), eq(schema.assignments.status, 'done')))
+      .orderBy(desc(schema.assignments.completed_at))
+      .limit(DONE_PAGE_SIZE)
+      .offset(doneOffset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.assignments)
+      .where(and(eq(schema.assignments.user_id, user.id), eq(schema.assignments.status, 'done'))),
   ]);
 
   const subjects = subjectsRows.filter((s) => s.active).map(rowToSubject);
-  const assignments = assignmentsRows.map(rowToAssignment);
   const subjectMap = new Map(subjects.map((s) => [s.id, s.name]));
 
-  const active = assignments
-    .filter((a) => a.status !== 'done')
+  const active = activeRows
+    .map(rowToAssignment)
     .map((a) => ({ ...a, subjectName: a.subject_id ? subjectMap.get(a.subject_id) ?? null : null }));
-  const done = assignments
-    .filter((a) => a.status === 'done')
+  const done = doneRows
+    .map(rowToAssignment)
     .map((a) => ({ ...a, subjectName: a.subject_id ? subjectMap.get(a.subject_id) ?? null : null }));
+  const doneTotalPages = Math.max(1, Math.ceil(doneCount / DONE_PAGE_SIZE));
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-7xl">
@@ -107,17 +128,18 @@ export default async function UniPage() {
         </CardContent>
       </Card>
 
-      {done.length > 0 && (
+      {doneCount > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>completados ({done.length})</CardTitle>
+            <CardTitle>completados ({doneCount})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {done.slice(0, 10).map((a) => (
+              {done.map((a) => (
                 <AssignmentRow key={a.id} assignment={a} tz={user.settings.timezone} />
               ))}
             </div>
+            <Pagination basePath="/uni" page={donePage} totalPages={doneTotalPages} paramName="donePage" />
           </CardContent>
         </Card>
       )}

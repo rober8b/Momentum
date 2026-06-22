@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { and, eq, asc } from 'drizzle-orm';
+import { and, eq, asc, desc, ne, sql } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Pagination } from '@/components/ui/Pagination';
 import { TaskForm } from '@/components/freelance/TaskForm';
 import { FreelanceTaskCard } from '@/components/freelance/FreelanceTaskCard';
 import { ClientEditForm } from '@/components/freelance/ClientEditForm';
@@ -13,6 +14,8 @@ import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
 import type { FreelanceTaskStatus } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+
+const DONE_PAGE_SIZE = 30;
 
 const STATUS_COLUMNS: { id: FreelanceTaskStatus; label: string; tone: string }[] = [
   { id: 'backlog', label: 'backlog', tone: 'text-muted-foreground' },
@@ -31,21 +34,42 @@ const CLIENT_STATUS_BADGE: Record<string, { variant: 'accent' | 'warning' | 'dan
 
 export default async function FreelanceClientPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ client: string }>;
+  searchParams: Promise<{ donePage?: string }>;
 }) {
   const user = await requireUser();
   const { client: clientId } = await params;
+  const { donePage: donePageParam } = await searchParams;
+  const donePage = Math.max(1, Number.parseInt(donePageParam ?? '1', 10) || 1);
+  const doneOffset = (donePage - 1) * DONE_PAGE_SIZE;
 
-  const [clientRows, taskRows] = await Promise.all([
+  const [clientRows, activeTaskRows, doneTaskRows, [{ count: doneCount }]] = await Promise.all([
     db.select().from(schema.freelanceClients).where(and(eq(schema.freelanceClients.id, clientId), eq(schema.freelanceClients.user_id, user.id))).limit(1),
-    db.select().from(schema.freelanceTasks).where(and(eq(schema.freelanceTasks.client_id, clientId), eq(schema.freelanceTasks.user_id, user.id))).orderBy(asc(schema.freelanceTasks.created_at)),
+    db
+      .select()
+      .from(schema.freelanceTasks)
+      .where(and(eq(schema.freelanceTasks.client_id, clientId), eq(schema.freelanceTasks.user_id, user.id), ne(schema.freelanceTasks.status, 'done')))
+      .orderBy(asc(schema.freelanceTasks.created_at)),
+    db
+      .select()
+      .from(schema.freelanceTasks)
+      .where(and(eq(schema.freelanceTasks.client_id, clientId), eq(schema.freelanceTasks.user_id, user.id), eq(schema.freelanceTasks.status, 'done')))
+      .orderBy(desc(schema.freelanceTasks.created_at))
+      .limit(DONE_PAGE_SIZE)
+      .offset(doneOffset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.freelanceTasks)
+      .where(and(eq(schema.freelanceTasks.client_id, clientId), eq(schema.freelanceTasks.user_id, user.id), eq(schema.freelanceTasks.status, 'done'))),
   ]);
 
   if (!clientRows.length) notFound();
 
   const client = rowToFreelanceClient(clientRows[0]);
-  const tasks = taskRows.map(rowToFreelanceTask);
+  const tasks = [...activeTaskRows, ...doneTaskRows].map(rowToFreelanceTask);
+  const doneTotalPages = Math.max(1, Math.ceil(doneCount / DONE_PAGE_SIZE));
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1400px]">
@@ -92,13 +116,14 @@ export default async function FreelanceClientPage({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         {STATUS_COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.id);
+          const isDone = col.id === 'done';
           return (
             <div key={col.id} className="flex flex-col gap-3 min-w-0">
               <div className="flex items-center justify-between gap-2 px-1">
                 <h3 className={`text-xs font-semibold uppercase tracking-wider ${col.tone}`}>
                   {col.label}
                 </h3>
-                <span className="text-xs text-muted-foreground font-mono">{colTasks.length}</span>
+                <span className="text-xs text-muted-foreground font-mono">{isDone ? doneCount : colTasks.length}</span>
               </div>
               <div className="space-y-2 min-h-[80px]">
                 {colTasks.map((task) => (
@@ -106,6 +131,9 @@ export default async function FreelanceClientPage({
                 ))}
                 <TaskForm clientId={clientId} defaultStatus={col.id} />
               </div>
+              {isDone && (
+                <Pagination basePath={`/freelance/${clientId}`} page={donePage} totalPages={doneTotalPages} paramName="donePage" />
+              )}
             </div>
           );
         })}

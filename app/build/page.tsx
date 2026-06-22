@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Plus, Lightbulb, FileText, Send, Ban, ArchiveRestore } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +7,7 @@ import { IdeaCard } from '@/components/build/IdeaCard';
 import { DraftCard, PublishedRow } from '@/components/build/DraftCard';
 import { DiscardedRow } from '@/components/build/DiscardedRow';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { t } from '@/lib/strings';
@@ -14,22 +15,58 @@ import { rowToBuildItem } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
-export default async function BuildPage() {
+const PUB_PAGE_SIZE = 20;
+const DISC_PAGE_SIZE = 20;
+
+export default async function BuildPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pubPage?: string; discPage?: string }>;
+}) {
   const user = await requireUser();
+  const { pubPage: pubPageParam, discPage: discPageParam } = await searchParams;
+  const pubPage = Math.max(1, Number.parseInt(pubPageParam ?? '1', 10) || 1);
+  const discPage = Math.max(1, Number.parseInt(discPageParam ?? '1', 10) || 1);
 
-  const rows = await db
-    .select()
-    .from(schema.buildItems)
-    .where(eq(schema.buildItems.user_id, user.id))
-    .orderBy(desc(schema.buildItems.created_at));
+  const [activeRows, pubRows, [{ count: pubCount }], discRows, [{ count: discCount }]] = await Promise.all([
+    db
+      .select()
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, user.id), inArray(schema.buildItems.status, ['idea', 'draft', 'scheduled'])))
+      .orderBy(desc(schema.buildItems.created_at)),
+    db
+      .select()
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published')))
+      .orderBy(desc(schema.buildItems.created_at))
+      .limit(PUB_PAGE_SIZE)
+      .offset((pubPage - 1) * PUB_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published'))),
+    db
+      .select()
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded')))
+      .orderBy(desc(schema.buildItems.created_at))
+      .limit(DISC_PAGE_SIZE)
+      .offset((discPage - 1) * DISC_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded'))),
+  ]);
 
-  const items = rows.map(rowToBuildItem);
-  const ideas = items.filter((i) => i.status === 'idea');
-  const drafts = items.filter((i) => i.status === 'draft');
-  const scheduled = items.filter((i) => i.status === 'scheduled');
-  const published = items.filter((i) => i.status === 'published');
-  const discarded = items.filter((i) => i.status === 'discarded');
-  const totalItems = ideas.length + drafts.length + scheduled.length + published.length + discarded.length;
+  const activeItems = activeRows.map(rowToBuildItem);
+  const published = pubRows.map(rowToBuildItem);
+  const discarded = discRows.map(rowToBuildItem);
+  const ideas = activeItems.filter((i) => i.status === 'idea');
+  const drafts = activeItems.filter((i) => i.status === 'draft');
+  const scheduled = activeItems.filter((i) => i.status === 'scheduled');
+  const pubTotalPages = Math.max(1, Math.ceil(pubCount / PUB_PAGE_SIZE));
+  const discTotalPages = Math.max(1, Math.ceil(discCount / DISC_PAGE_SIZE));
+  const totalItems = ideas.length + drafts.length + scheduled.length + pubCount + discCount;
 
   return (
     <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-[1400px]">
@@ -40,7 +77,7 @@ export default async function BuildPage() {
           </p>
           <h2 className="text-2xl lg:text-3xl font-semibold mt-1">tracker</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {ideas.length} ideas · {drafts.length} drafts · {published.length} publicados{discarded.length > 0 ? ` · ${discarded.length} descartados` : ''}
+            {ideas.length} ideas · {drafts.length} drafts · {pubCount} publicados{discCount > 0 ? ` · ${discCount} descartados` : ''}
           </p>
         </div>
         <Link href="/build/new">
@@ -110,7 +147,7 @@ export default async function BuildPage() {
           <CardHeader>
             <CardTitle>
               <Send size={14} className="inline mr-1.5 -mt-0.5" />
-              publicados ({published.length})
+              publicados ({pubCount})
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 space-y-2 min-h-[400px]">
@@ -121,21 +158,23 @@ export default async function BuildPage() {
             ) : (
               published.map((i) => <PublishedRow key={i.id} item={i} />)
             )}
+            <Pagination basePath="/build" page={pubPage} totalPages={pubTotalPages} paramName="pubPage" query={{ discPage: discPage > 1 ? String(discPage) : undefined }} />
           </CardContent>
         </Card>
       </div>
       )}
 
-      {discarded.length > 0 && (
+      {discCount > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-            <Ban size={12} /> descartados ({discarded.length})
+            <Ban size={12} /> descartados ({discCount})
           </summary>
           <div className="mt-3 space-y-2">
             {discarded.map((i) => (
               <DiscardedRow key={i.id} item={i} />
             ))}
           </div>
+          <Pagination basePath="/build" page={discPage} totalPages={discTotalPages} paramName="discPage" query={{ pubPage: pubPage > 1 ? String(pubPage) : undefined }} />
         </details>
       )}
     </div>

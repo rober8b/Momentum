@@ -2,7 +2,7 @@ import { desc, sql } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { UsersTable, type AdminUserRow } from '@/components/admin/UsersTable';
-import { Pagination } from '@/components/admin/Pagination';
+import { Pagination } from '@/components/ui/Pagination';
 
 export const dynamic = 'force-dynamic';
 

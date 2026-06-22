@@ -3,7 +3,7 @@ import { db, schema } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { AuditFilters } from '@/components/admin/AuditFilters';
 import { AuditTable, type AuditEntry } from '@/components/admin/AuditTable';
-import { Pagination } from '@/components/admin/Pagination';
+import { Pagination } from '@/components/ui/Pagination';
 
 export const dynamic = 'force-dynamic';
 

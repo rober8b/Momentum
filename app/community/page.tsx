@@ -1,9 +1,10 @@
-import { and, asc, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { Users } from 'lucide-react';
 import { CommitmentRow } from '@/components/community/CommitmentRow';
 import { CommunityForm } from '@/components/community/CommunityForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { t } from '@/lib/strings';
@@ -11,28 +12,50 @@ import { rowToCommunityItem, rowToOrganization } from '@/lib/today';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CommunityPage() {
-  const user = await requireUser();
+const DONE_PAGE_SIZE = 20;
+const CANCELLED_PAGE_SIZE = 20;
 
-  const [activeRows, cancelledRows, orgRows] = await Promise.all([
+export default async function CommunityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ donePage?: string; cancPage?: string }>;
+}) {
+  const user = await requireUser();
+  const { donePage: donePageParam, cancPage: cancPageParam } = await searchParams;
+  const donePage = Math.max(1, Number.parseInt(donePageParam ?? '1', 10) || 1);
+  const cancPage = Math.max(1, Number.parseInt(cancPageParam ?? '1', 10) || 1);
+
+  const [pendingRows, doneRows, [{ count: doneCount }], cancelledRows, [{ count: cancelledCount }], orgRows] = await Promise.all([
     db
-      .select({
-        item: schema.communityItems,
-        org_name: schema.organizations.name,
-      })
+      .select({ item: schema.communityItems, org_name: schema.organizations.name })
       .from(schema.communityItems)
       .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
-      .where(and(ne(schema.communityItems.status, 'cancelled'), eq(schema.communityItems.user_id, user.id)))
+      .where(and(eq(schema.communityItems.status, 'pending'), eq(schema.communityItems.user_id, user.id)))
       .orderBy(asc(schema.communityItems.due_date)),
     db
-      .select({
-        item: schema.communityItems,
-        org_name: schema.organizations.name,
-      })
+      .select({ item: schema.communityItems, org_name: schema.organizations.name })
+      .from(schema.communityItems)
+      .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
+      .where(and(eq(schema.communityItems.status, 'done'), eq(schema.communityItems.user_id, user.id)))
+      .orderBy(desc(schema.communityItems.created_at))
+      .limit(DONE_PAGE_SIZE)
+      .offset((donePage - 1) * DONE_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.communityItems)
+      .where(and(eq(schema.communityItems.status, 'done'), eq(schema.communityItems.user_id, user.id))),
+    db
+      .select({ item: schema.communityItems, org_name: schema.organizations.name })
       .from(schema.communityItems)
       .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
       .where(and(eq(schema.communityItems.status, 'cancelled'), eq(schema.communityItems.user_id, user.id)))
-      .orderBy(asc(schema.communityItems.created_at)),
+      .orderBy(desc(schema.communityItems.created_at))
+      .limit(CANCELLED_PAGE_SIZE)
+      .offset((cancPage - 1) * CANCELLED_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.communityItems)
+      .where(and(eq(schema.communityItems.status, 'cancelled'), eq(schema.communityItems.user_id, user.id))),
     db
       .select()
       .from(schema.organizations)
@@ -41,10 +64,11 @@ export default async function CommunityPage() {
   ]);
 
   const orgs = orgRows.map(rowToOrganization);
-  const items = activeRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
+  const pending = pendingRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
+  const done = doneRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
   const cancelled = cancelledRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
-  const pending = items.filter((i) => i.status === 'pending');
-  const done = items.filter((i) => i.status === 'done');
+  const doneTotalPages = Math.max(1, Math.ceil(doneCount / DONE_PAGE_SIZE));
+  const cancelledTotalPages = Math.max(1, Math.ceil(cancelledCount / CANCELLED_PAGE_SIZE));
 
   // Group pending items by organization
   const byOrg = new Map<string, typeof pending>();
@@ -117,25 +141,26 @@ export default async function CommunityPage() {
         </Card>
       )}
 
-      {done.length > 0 && (
+      {doneCount > 0 && (
         <Card className="mb-4">
           <CardHeader>
-            <CardTitle>completados ({done.length})</CardTitle>
+            <CardTitle>completados ({doneCount})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {done.slice(0, 10).map((item) => (
+              {done.map((item) => (
                 <CommitmentRow key={item.id} item={item} tz={user.settings.timezone} lang={user.settings.language} />
               ))}
             </div>
+            <Pagination basePath="/community" page={donePage} totalPages={doneTotalPages} paramName="donePage" query={{ cancPage: cancPage > 1 ? String(cancPage) : undefined }} />
           </CardContent>
         </Card>
       )}
 
-      {cancelled.length > 0 && (
+      {cancelledCount > 0 && (
         <details className="mt-4">
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
-            cancelados ({cancelled.length})
+            cancelados ({cancelledCount})
           </summary>
           <div className="mt-3 space-y-2">
             {cancelled.map((item) => (
@@ -145,6 +170,7 @@ export default async function CommunityPage() {
               </div>
             ))}
           </div>
+          <Pagination basePath="/community" page={cancPage} totalPages={cancelledTotalPages} paramName="cancPage" query={{ donePage: donePage > 1 ? String(donePage) : undefined }} />
         </details>
       )}
     </div>

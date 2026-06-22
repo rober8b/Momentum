@@ -1,5 +1,6 @@
 import { BlockCard } from './BlockCard';
 import { BlockForm } from './BlockForm';
+import { Pagination } from '@/components/ui/Pagination';
 import { t } from '@/lib/strings';
 import type { Workblock, WorkblockStatus } from '@/lib/types';
 import type { Lang } from '@/lib/strings';
@@ -14,12 +15,28 @@ function getColumns(lang: Lang): { id: WorkblockStatus; label: string; tone: str
   ];
 }
 
-export function KanbanBoard({ workblocks, tz = 'UTC', lang = 'en' }: { workblocks: Workblock[]; tz?: string; lang?: Lang }) {
+export function KanbanBoard({
+  workblocks,
+  tz = 'UTC',
+  lang = 'en',
+  donePage,
+  doneTotalPages,
+  doneCount,
+}: {
+  workblocks: Workblock[];
+  tz?: string;
+  lang?: Lang;
+  // Pagination for the "done" column, which is the only one expected to grow unbounded.
+  donePage?: number;
+  doneTotalPages?: number;
+  doneCount?: number;
+}) {
   const COLUMNS = getColumns(lang);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
       {COLUMNS.map((col) => {
         const items = workblocks.filter((w) => w.status === col.id);
+        const isDone = col.id === 'done';
         return (
           <div key={col.id} className="flex flex-col gap-3 min-w-0">
             <div className="flex items-center justify-between gap-2 px-1">
@@ -27,7 +44,7 @@ export function KanbanBoard({ workblocks, tz = 'UTC', lang = 'en' }: { workblock
                 {col.label}
               </h3>
               <span className="text-xs text-muted-foreground font-mono">
-                {items.length}
+                {isDone && doneCount !== undefined ? doneCount : items.length}
               </span>
             </div>
             <div className="space-y-2 min-h-[120px]">
@@ -36,6 +53,9 @@ export function KanbanBoard({ workblocks, tz = 'UTC', lang = 'en' }: { workblock
               ))}
               <BlockForm defaultStatus={col.id} />
             </div>
+            {isDone && donePage !== undefined && doneTotalPages !== undefined && (
+              <Pagination basePath="/work" page={donePage} totalPages={doneTotalPages} paramName="donePage" />
+            )}
           </div>
         );
       })}
