@@ -1,0 +1,105 @@
+name: DB Backup
+
+# Daily encrypted pg_dump of the Railway Postgres DB, with an in-CI restore
+# verification before the backup is ever trusted enough to upload.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL          — Railway's public Postgres connection string (same
+#                            value used for Vercel's DATABASE_URL).
+#   BACKUP_ENCRYPTION_KEY — random passphrase, e.g. `openssl rand -base64 32`.
+#                            Without this, dumps are NOT encrypted-safe to
+#                            store as artifacts — see note below.
+#
+# This repo is public, and GitHub Actions artifacts on public repos are
+# downloadable by anyone with the run URL (no repo write access required).
+# The dump contains real user data (emails, password hashes, billing fields),
+# so it is always encrypted before upload — never store a plaintext dump here.
+#
+# If DATABASE_URL is unset (e.g. a self-hosted fork that doesn't want this
+# workflow), the job skips cleanly instead of failing.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC daily — distinct from the Sunday 22:00 UTC vault-export cron
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    name: Backup & verify
+    runs-on: ubuntu-latest
+
+    services:
+      restore_target:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: restore_test
+          POSTGRES_PASSWORD: restore_test
+          POSTGRES_DB: restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check required secrets
+        id: guard
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret not set — skipping backup (expected for self-host forks that opt out)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
+            echo "::error::BACKUP_ENCRYPTION_KEY secret is required (this repo is public — dumps must never be uploaded unencrypted). Generate one with: openssl rand -base64 32"
+            exit 1
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Dump database
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          docker run --rm postgres:16-alpine \
+            pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges \
+            > backup.dump
+          test -s backup.dump || { echo "::error::pg_dump produced an empty file"; exit 1; }
+
+      - name: Verify restore into scratch DB
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          docker run --rm --network host -v "$PWD":/backup postgres:16-alpine \
+            pg_restore --no-owner --no-privileges \
+            -d postgresql://restore_test:restore_test@localhost:5432/restore_test \
+            /backup/backup.dump
+
+          # Sanity check: confirm a known table exists and is queryable post-restore.
+          docker run --rm --network host postgres:16-alpine \
+            psql postgresql://restore_test:restore_test@localhost:5432/restore_test \
+            -c "select count(*) from users;"
+
+      - name: Encrypt dump
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in backup.dump \
+            -out "backup-${{ steps.guard.outputs.date }}.dump.enc" \
+            -pass env:BACKUP_ENCRYPTION_KEY
+          rm -f backup.dump
+
+      - name: Upload encrypted backup
+        if: steps.guard.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ steps.guard.outputs.date }}
+          path: backup-*.dump.enc
+          retention-days: 30
