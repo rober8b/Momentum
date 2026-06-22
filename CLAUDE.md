@@ -1,6 +1,6 @@
 # CLAUDE.md — momentum
 
-Personal daily dashboard de Rober. Multi-user (admin + members). 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's workspace\`); exporta items completados semanalmente.
+Personal daily dashboard de Rober. Multi-user (admin + members). 3 pilares: **Uni** (UCEMA) / **Work** (Aleph) / **Build** (X + LinkedIn). Capa operacional diaria por encima del vault de Obsidian (`C:\Users\rober\rober's-workspace\`); exporta items completados semanalmente.
 
 - **Live URL:** configurar dominio custom en Vercel → Settings → Domains
 - **Plan original:** `C:\Users\rober\.claude\plans\tengo-menos-de-1k-effervescent-pizza.md`
@@ -102,7 +102,7 @@ npm run typecheck && npm run build
 | Settings — preferencias del usuario | `app/settings/profile/` + `app/settings/profile/actions.ts` |
 | Settings — API tokens | `app/settings/api-tokens/` |
 | Cron schedule | `vercel.json` |
-| Convenciones de naming, formato de pages del vault | `C:\Users\rober\rober's workspace\CLAUDE.md` |
+| Convenciones de naming, formato de pages del vault | `C:\Users\rober\rober's-workspace\CLAUDE.md` |
 
 ---
 
@@ -132,7 +132,7 @@ npm run typecheck && npm run build
 - **Type check después de cada edit** (`npm run typecheck`). Antes de declarar algo terminado, también correr `npm run build`.
 - **Si dudás entre 2 enfoques**, explicame ambos y elijo. No asumas.
 - **No tocar `proxy.ts` ni `lib/auth.ts` sin avisarme** — la auth es crítica y los cambios silenciosos rompen la seguridad.
-- **El vault de Obsidian** (`C:\Users\rober\rober's workspace\`) es territorio aparte — no editar desde este proyecto.
+- **El vault de Obsidian** (`C:\Users\rober\rober's-workspace\`) es territorio aparte — no editar desde este proyecto.
 - **Si pegás un error de Next 16 que no entendés**, leer `node_modules/next/dist/docs/` antes de inventar una solución.
 - **Idioma del UI:** español argentino, lowercase, sin mayúsculas innecesarias. Ver botones existentes (`"agregar"`, `"guardar"`, `"salir"`).
 - **i18n:** strings de UI van en `lib/strings.ts`. Nunca hardcodear strings en componentes compartidos — usar `t(key, lang)`.
@@ -883,7 +883,7 @@ git push -u origin main
 - ❌ **No volver a Supabase.** Railway + Drizzle es la decisión por scaling y type-safety.
 - ❌ **No agregar libs de drag-and-drop al kanban.** Los botones de status change son suficientes y más mobile-friendly.
 - ❌ **No agregar tests por agregar.** App personal — los tests vienen cuando hay un bug real para arreglar.
-- ❌ **No tocar el vault de Obsidian** (`C:\Users\rober\rober's workspace\`) desde este repo. Son codebases separadas.
+- ❌ **No tocar el vault de Obsidian** (`C:\Users\rober\rober's-workspace\`) desde este repo. Son codebases separadas.
 - ❌ **No agregar caching agresivo.** Toda la data es del usuario, `force-dynamic` es correcto.
 - ❌ **No usar `'use client'` por default.** Empezá server, escalá a client solo si hay interactividad real.
 - ❌ **No crear un cliente Supabase ni replicar el patrón viejo.** Drizzle es la única vía a la DB.
@@ -896,7 +896,7 @@ git push -u origin main
 
 Esta app es la **capa operacional diaria**. El vault es la **capa de conocimiento de largo plazo**.
 
-- **Project node:** `C:\Users\rober\rober's workspace\10-projects\aleph\aleph.md` (este repo lo referencia para tracking de sesiones)
+- **Project node:** `C:\Users\rober\rober's-workspace\10-projects\momentum\momentum.md` (este repo lo referencia para tracking de sesiones — el path real del vault usa guion, no espacio; ojo con el typo)
 - **Plan original:** `C:\Users\rober\.claude\plans\tengo-menos-de-1k-effervescent-pizza.md`
 - **Export semanal:** ver sección "Vault export" arriba
 - **Si el vault cambia su schema** (su `CLAUDE.md` raíz o estructura de carpetas), revisar que los paths de export sigan siendo válidos
@@ -954,9 +954,9 @@ UPDATE users SET invalidate_sessions_before = EXTRACT(EPOCH FROM NOW())::bigint 
 
 ## Referencias externas
 
-- `C:\Users\rober\rober's workspace\80-wiki\concepts\claude-code-best-practices.md` — best practices de Claude Code
-- `C:\Users\rober\rober's workspace\80-wiki\concepts\agentic-engineering.md` — principios de ingeniería agéntica
-- `C:\Users\rober\rober's workspace\80-wiki\concepts\context-bloat.md` — por qué este CLAUDE.md está acotado a 15 hard rules
+- `C:\Users\rober\rober's-workspace\80-wiki\concepts\claude-code-best-practices.md` — best practices de Claude Code
+- `C:\Users\rober\rober's-workspace\80-wiki\concepts\agentic-engineering.md` — principios de ingeniería agéntica
+- `C:\Users\rober\rober's-workspace\80-wiki\concepts\context-bloat.md` — por qué este CLAUDE.md está acotado a 15 hard rules
 - `C:\Users\rober\WEB_WORKSPACE\CLAUDE.md` — overview del workspace
 - `C:\Users\rober\WEB_WORKSPACE\portfolio-robertino\` — referencia del frontend stack (motion v12, base-ui, tokens OKLCH)
 - `C:\Users\rober\WEB_WORKSPACE\lanza\` — referencia inicial del setup Clerk + Supabase (ahora deprecado en este proyecto, mantener como histórico)
