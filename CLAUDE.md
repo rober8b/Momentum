@@ -52,6 +52,8 @@ npm run dev          # localhost:3000
 npm run build        # production build
 npm run typecheck    # tsc --noEmit (debe ser 0 errors)
 npm run lint         # ESLint
+npm test             # vitest run (suite completa, sin DB real)
+npm run test:watch   # vitest en watch mode
 
 # Local Postgres (Docker) — ver "Local dev database" más abajo
 npm run db:up           # arranca el contenedor Postgres local (docker-compose.dev.yml)
@@ -241,6 +243,51 @@ if (!row) notFound();
 
 ---
 
+## Pagination
+
+**Patrón: lo activo queda sin límite, lo histórico (`done`/`archived`/`cancelled`) se pagina a nivel SQL.**
+Las listas de pilares (work, build, freelance, projects, community, uni) muestran datos activos en boards
+Kanban o vistas agrupadas — ese set es chico por naturaleza (tu carga de trabajo actual) y romperlo en
+páginas arruinaría la UX del Kanban. Lo que crece sin límite con el tiempo es lo *completado* — años de
+workblocks en `done`, posts publicados, proyectos archivados. Eso es lo que se pagina.
+
+**Nunca** uses `.slice(0, N)` en JS después de un fetch sin límite — eso sigue trayendo la tabla entera a
+Node antes de cortarla. El límite va en la query SQL (`.limit().offset()` + un `count()` separado para el
+total), no después.
+
+Componente reutilizable: `components/ui/Pagination.tsx` (antes vivía solo en `components/admin/`, se movió
+porque ahora lo usan también los pilares). Acepta `paramName` para soportar más de una sección paginada en
+la misma page (ej. `app/build/page.tsx` pagina `published` y `discarded` por separado con `pubPage` y
+`discPage`).
+
+```ts
+// Patrón canónico — ver app/work/page.tsx (done column del Kanban) o app/projects/page.tsx (archivados)
+const PAGE_SIZE = 24;
+const { donePage: pageParam } = await searchParams; // searchParams es Promise en Next 16
+const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1);
+
+const [activeRows, doneRows, [{ count: doneCount }]] = await Promise.all([
+  db.select().from(schema.x).where(and(eq(schema.x.user_id, user.id), ne(schema.x.status, 'done'))), // sin límite
+  db.select().from(schema.x)
+    .where(and(eq(schema.x.user_id, user.id), eq(schema.x.status, 'done')))
+    .orderBy(desc(schema.x.created_at))
+    .limit(PAGE_SIZE)
+    .offset((page - 1) * PAGE_SIZE),
+  db.select({ count: sql<number>`count(*)::int` }).from(schema.x)
+    .where(and(eq(schema.x.user_id, user.id), eq(schema.x.status, 'done'))),
+]);
+
+const doneTotalPages = Math.max(1, Math.ceil(doneCount / PAGE_SIZE));
+// <Pagination basePath="/work" page={page} totalPages={doneTotalPages} paramName="donePage" />
+```
+
+**Si agregás una página de pilar nueva con un bucket histórico que puede crecer sin límite**, seguí este
+mismo patrón — no hace falta pedir permiso para replicarlo, pero si el bucket "activo" también puede crecer
+sin límite con el tiempo (no es obviamente acotado por naturaleza), pensalo dos veces antes de asumir que no
+necesita paginación.
+
+---
+
 ## Database schema — overview
 
 15 tablas en `lib/db/schema.ts`:
@@ -380,6 +427,54 @@ DATABASE_URL=postgres://momentum:momentum@localhost:5432/momentum
 ```
 
 El archivo `docker-compose.dev.yml` está en la raíz del repo. No afecta Vercel ni Railway en ningún deploy.
+
+---
+
+## Tests
+
+**Vitest** — elegido por liviano (sin dependencia de un test DB real para la mayoría de los casos) y porque
+es el estándar de facto para proyectos Vite/Next modernos. Los tests viven junto al código (`*.test.ts`),
+no en una carpeta `__tests__/` separada.
+
+```bash
+npm test          # corre toda la suite una vez (vitest run)
+npm run test:watch  # watch mode para desarrollo
+```
+
+**Filosofía:** no hay cobertura exhaustiva — esta es una app personal y `CLAUDE.md` ya dice "no agregar
+tests por agregar". Los tests existentes cubren los flujos donde un bug es caro: dinero (billing) y acceso
+(auth/admin). Si agregás un nuevo flujo de ese tipo, agregale tests; si es un CRUD más de un pilar, no.
+
+**Cómo están mockeados (sin Postgres real):**
+- `test/stubs/db-mock.ts` — reemplazo de `@/lib/db` con un mock encadenable+then-able. Cada llamada a
+  `db.select()/insert()/update()/delete()` devuelve una nueva "chain" que resuelve al próximo resultado
+  encolado con `queueResult([...])`, en el mismo orden en que el código bajo test las dispara. Usar
+  `resetDbMock()` en `beforeEach`.
+  ```ts
+  vi.mock('@/lib/db', () => import('../test/stubs/db-mock'));
+  import { queueResult, resetDbMock } from '../test/stubs/db-mock';
+  beforeEach(() => resetDbMock());
+  queueResult([{ id: '1', active: true }]); // resultado de la próxima query
+  ```
+- `'server-only'` está aliaseado a un stub vacío en `vitest.config.ts` (Next lo no-opea en su bundler;
+  Vite/vitest no lo conoce, así que sin el alias cualquier `lib/*.ts` con `import 'server-only'` rompe al
+  importarse en un test).
+- Variables/funciones referenciadas dentro de un factory de `vi.mock(...)` que no sean otro `import(...)`
+  dinámico deben pasar por `vi.hoisted(() => ({...}))` — `vi.mock` se hoistea por encima de todo el resto
+  del archivo, así que un `const` normal declarado más abajo todavía no existe cuando el factory corre.
+
+**Qué está cubierto:**
+| Archivo | Qué testea |
+|---------|-----------|
+| `lib/auth.test.ts` | HMAC sign/verify de la cookie de sesión (roundtrip, tamper, secret distinto), `requireUser` (usuario inactivo, sesión invalidada por `invalidate_sessions_before`), `requireAdmin` (rechaza member) |
+| `lib/limits.test.ts` | `checkLimit` — self-host siempre unlimited sin tocar la DB; hosted con plan free bajo/al/sobre el límite; plan pro unlimited |
+| `lib/polar-webhook.test.ts` | `resolvePolarEvent` — el mapeo evento→plan de Polar completo (todas las transiciones de `subscription.updated`, `revoked`→free, `order.paid`→pro, eventos no manejados→null) |
+| `app/admin/actions.test.ts` | guard de auto-lockout en `setUserActive`/`setUserRole` — un admin no puede desactivarse ni quitarse el rol a sí mismo |
+
+**Billing es dinero real — `lib/polar-webhook.ts` extrae el switch evento→estado de
+`app/api/webhooks/polar/route.ts` a una función pura (`resolvePolarEvent`) específicamente para que sea
+testeable sin mockear el SDK de Polar ni la DB.** Si tocás el mapeo de eventos de Polar, tocás ese archivo
+y sus tests — no reinsertes el switch inline en la route.
 
 ---
 
@@ -532,6 +627,42 @@ Endpoints:
 
 **Generar token:** `/settings/api-tokens` en la UI.
 
+### Rate limiting
+
+Los 6 endpoints `/api/v1/import/*` tienen rate limiting por token (no por IP — todos ya requieren un Bearer
+token válido antes de hacer nada, así que el token es la unidad correcta de throttling).
+
+**Para ajustar los límites:** un solo lugar, `lib/rate-limits.ts` → `API_IMPORT_RATE_LIMIT`. Dos perfiles:
+
+```ts
+export const API_IMPORT_RATE_LIMIT = {
+  hosted:      { windowMinutes: 1, maxRequests: 10 },
+  self_hosted: { windowMinutes: 1, maxRequests: 60 },
+};
+```
+
+**Por qué hosted es más estricto que self-host** (a diferencia de los plan limits de `lib/plans.ts`, que en
+self-host son siempre `null`/unlimited): los plan limits existen para monetización — no tiene sentido
+capar tus propios recursos en tu propio server. El rate limit es distinto: protege contra abuso/sobrecarga,
+no contra dar producto gratis. En hosted la DB es compartida entre tenants — un token filtrado o un bug de
+script de un usuario puede degradar el servicio para todos los demás, así que el límite es bajo. En
+self-host el único riesgo real es tu propio script en loop infinito pegándole a tu propio Postgres — vale
+la pena un límite, pero uno mucho más laxo (6x). Si te molesta en un import grande legítimo, subí el número
+de `self_hosted` en ese archivo — no hace falta tocar nada más.
+
+**Presupuesto compartido entre los 6 endpoints, no por endpoint.** Un token que reparte requests entre
+`/import/workblocks`, `/import/build`, etc. no debería tener más presupuesto combinado que uno que le pega
+todo a un solo endpoint — todos tocan la misma DB.
+
+**Implementación:** `lib/api-rate-limit.ts:enforceApiRateLimit(tokenId, route)` — sliding window sobre la
+tabla `api_rate_limit_hits` (mismo patrón que `login_attempts`: contar hits recientes, insertar uno nuevo si
+hay budget, limpiar filas viejas oportunísticamente). Tira `ApiAuthError(429)` con `retryAfter` en segundos
+si se excede; cada route ya lo maneja en su `catch` existente sin código adicional (`ApiAuthError` ahora
+acepta status `429` además de `401`/`403`).
+
+**Agregar rate limiting a un endpoint nuevo:** llamar `enforceApiRateLimit(tokenId, '<nombre-ruta>')` justo
+después de `requireApiToken(...)`, dentro del mismo `try`. El `catch` existente ya sabe mostrar el 429.
+
 ---
 
 ## MCP server
@@ -562,6 +693,63 @@ Herramientas MCP disponibles: `analyze_vault_structure`, `detect_obsidian_vault`
 **Auth del cron:** Vercel manda header `Authorization: Bearer ${CRON_SECRET}`. El handler valida: si `CRON_SECRET` está seteado y el header no matchea → 401. Si en prod no está seteado → 500.
 
 **V2 (TBD):** push directo a un repo de GitHub del vault via Octokit + Syncthing al vault local. Para eso están las vars `VAULT_REPO_OWNER`, `VAULT_REPO_NAME`, `GITHUB_TOKEN` en `.env.example`.
+
+---
+
+## Database backups
+
+`.github/workflows/db-backup.yml` corre **daily a las 03:00 UTC** (+ `workflow_dispatch` para correrlo a
+mano). Hace `pg_dump` de la DB de Railway, **verifica el restore en CI** (lo restaura contra un Postgres
+descartable antes de confiar en el backup), lo encripta, y lo sube como artifact de GitHub Actions.
+
+**Por qué encriptado:** este repo es **público** — los artifacts de GitHub Actions en repos públicos son
+descargables por cualquiera con la run URL, sin necesitar acceso de escritura al repo. El dump tiene datos
+reales (emails, password hashes, campos de billing de Polar), así que nunca se sube sin encriptar.
+
+### Setup (una sola vez)
+
+En GitHub → repo → Settings → Secrets and variables → Actions, agregar:
+
+| Secret | Valor |
+|--------|-------|
+| `DATABASE_URL` | la misma connection string pública de Railway que usa Vercel |
+| `BACKUP_ENCRYPTION_KEY` | passphrase random — generar con `openssl rand -base64 32` |
+
+**Guardar `BACKUP_ENCRYPTION_KEY` en un password manager.** Sin esa key, los backups encriptados son
+irrecuperables — no hay "olvidé la key, recupérenla" posible.
+
+Si `DATABASE_URL` no está seteada (ej. un fork self-host que no quiere este workflow), el job hace skip
+limpio sin fallar. Si falta `BACKUP_ENCRYPTION_KEY` pero sí está `DATABASE_URL`, el job **falla fuerte**
+(nunca sube un dump sin encriptar).
+
+### Restore — paso a paso
+
+1. Descargar el artifact (desde la run de Actions, o `gh run download <run-id> -n db-backup-<fecha>`).
+2. Desencriptar:
+   ```bash
+   openssl enc -d -aes-256-cbc -pbkdf2 -in backup-<fecha>.dump.enc -out backup.dump -pass pass:'<BACKUP_ENCRYPTION_KEY>'
+   ```
+3. Restaurar:
+   - **DB nueva/vacía** (ej. Railway recién provisionado):
+     ```bash
+     pg_restore --no-owner --no-privileges -d "$DATABASE_URL" backup.dump
+     ```
+   - **DB existente que se quiere sobreescribir** (recovery real, perdiste prod):
+     ```bash
+     pg_restore --clean --if-exists --no-owner --no-privileges -d "$DATABASE_URL" backup.dump
+     ```
+4. Verificar antes de confiar: correr el restore primero contra una DB local/descartable (ej. `db:up` local
+   y un `DATABASE_URL` apuntando ahí) y chequear que las tablas clave tengan data esperada, antes de tocar
+   prod.
+
+El paso 4 del workflow (`Verify restore into scratch DB`) ya hace exactamente esto en cada corrida — si esa
+verificación falla, el job falla y no sube el backup, así que un backup que llegó a subirse ya pasó por un
+restore real al menos una vez.
+
+### Retención
+
+Artifacts se retienen 30 días (`retention-days` en el workflow — ajustable ahí). Backups más viejos los
+borra GitHub automáticamente, no hace falta limpieza manual.
 
 ---
 
