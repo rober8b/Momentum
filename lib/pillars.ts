@@ -3,7 +3,7 @@
 // ISO strings, never a raw Date). See docs/DYNAMIC_PILLARS.md for the design.
 
 import type { PillarRow, PillarItemRow } from '@/lib/db/schema';
-import type { Pillar, PillarItem } from '@/lib/types';
+import type { ChildViewConfig, Pillar, PillarItem, PillarStatusStep } from '@/lib/types';
 
 export function rowToPillar(r: PillarRow): Pillar {
   return {
@@ -39,4 +39,21 @@ export function rowToPillarItem(r: PillarItemRow): PillarItem {
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
   };
+}
+
+// Hierarchical pillars (Freelance: client -> task) keep two status
+// workflows — the pillar's own (for container items) and config.childView's
+// (for items with a parent). Centralizing the lookup here means every call
+// site (actions, views) picks the right one the same way. See
+// docs/DYNAMIC_PILLARS.md locked decision #3.
+export function getChildViewConfig(pillar: Pillar): ChildViewConfig | null {
+  return pillar.config.childView ?? null;
+}
+
+export function statusWorkflowFor(pillar: Pillar, hasParent: boolean): PillarStatusStep[] {
+  if (hasParent) {
+    const childView = getChildViewConfig(pillar);
+    if (childView) return childView.status_workflow;
+  }
+  return pillar.status_workflow;
 }

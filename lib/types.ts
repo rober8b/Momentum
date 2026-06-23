@@ -271,9 +271,25 @@ export type PillarStatusStep = {
   is_terminal?: boolean;
 };
 
+// How a container item's children render and what statuses they can have —
+// e.g. Freelance: clients are containers (status_workflow on the pillar
+// itself), tasks are children with their own, different status_workflow
+// (backlog/today/in-progress/blocked/done) and their own view (kanban).
+// Lives at pillar.config.childView. See docs/DYNAMIC_PILLARS.md.
+export type ChildViewConfig = {
+  view_type: PillarViewType;
+  status_workflow: PillarStatusStep[];
+  cardFields: string[];
+};
+
 // View-type-specific settings. Shape is informal (not DB-enforced) — see
-// docs/DYNAMIC_PILLARS.md "config shape per view type".
-export type PillarConfig = Record<string, unknown>;
+// docs/DYNAMIC_PILLARS.md "config shape per view type". `childView` is the
+// one sub-key with a real type (ChildViewConfig) since hierarchical pillars
+// depend on it structurally, not just for rendering hints.
+export type PillarConfig = Record<string, unknown> & {
+  cardFields?: string[];
+  childView?: ChildViewConfig;
+};
 
 export type Pillar = {
   id: string;

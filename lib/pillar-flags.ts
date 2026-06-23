@@ -6,3 +6,9 @@
 export function isProjectsDynamicEngineEnabled(): boolean {
   return process.env.PROJECTS_DYNAMIC_ENGINE !== 'false';
 }
+
+// Set FREELANCE_DYNAMIC_ENGINE=false to fall back to the legacy
+// freelance_clients/freelance_tasks-backed /freelance routes instantly.
+export function isFreelanceDynamicEngineEnabled(): boolean {
+  return process.env.FREELANCE_DYNAMIC_ENGINE !== 'false';
+}

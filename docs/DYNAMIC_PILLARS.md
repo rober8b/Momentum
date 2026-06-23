@@ -29,6 +29,16 @@ this doc.
    FK on `pillar_items`) handles Uni's subject→assignment and Freelance's client→task identically. An
    explicit `is_container: boolean` column marks parent-type rows — **the renderer never infers
    "this is a group" by checking whether anything points at it; a container declares itself.**
+
+   **Added in phase 3 (Freelance):** a hierarchical pillar's two levels can have *different* status
+   workflows and view types — Freelance's clients (containers) are active/paused/blocked/archived in a
+   grid, but its tasks (children) are backlog/today/in-progress/blocked/done in a kanban. `pillar.config`
+   grew a typed `childView: { view_type, status_workflow, cardFields }` sub-key for this. The pillar's own
+   top-level `status_workflow` always describes containers; `childView.status_workflow` describes
+   children. `app/p/actions.ts`'s `statusWorkflowFor(pillar, hasParent)` and `lib/pillars.ts`'s twin
+   picks the right one based on whether the item being validated has a `parent_item_id`. A container's
+   card links to a drill-down page (`/p/[key]/[itemId]`, or a legacy-cutover route's own path via
+   `basePath`) rendering its children with `GenericKanban`.
 4. **Status validation moves to the app layer.** `status` is a free-text column, validated with Zod against
    the owning pillar's `status_workflow` at write time. This is a deliberate loss of the DB-enum safety
    net that the old per-pillar tables had — accepted as the cost of genuine dynamism.
@@ -134,7 +144,24 @@ so it's written down before it's needed, not improvised under pressure.
    - Today, search, vault export, plan limits, and API v1 import still read `own_projects` exclusively —
      Projects data is temporarily duplicated (real in `own_projects`, mirrored in `pillar_items`) until
      phase 5 catches those up.
-3. **Hierarchy + a second view type** — Freelance (client→task, kanban) or Build next.
+3. **Hierarchy + a second view type, locally** (done, Sprint B) — Freelance. `scripts/migrate-freelance.ts`
+   migrates `freelance_clients` (→ container items) and `freelance_tasks` (→ child items, clients first so
+   tasks can resolve their new parent id), idempotent and read-only on both source tables. `/freelance` and
+   `/freelance/[client]` read from the dynamic engine when `FREELANCE_DYNAMIC_ENGINE` is on, the legacy
+   tables verbatim when it's off. **Local only — prod/Railway untouched**, same as phase 2.
+
+   `/freelance/[client]`'s URL param matches a container item by either its new `pillar_items.id` *or*
+   `fields.legacy_id` — so a bookmarked pre-cutover URL (the original `freelance_clients.id`) keeps
+   resolving correctly forever, no redirect table needed. Verified directly against the DB: both id forms
+   for the same client resolve to the same row.
+
+   Same known gaps as phase 2 (GitHub last-push, archived/done pagination, cross-cutting subsystems still
+   reading the legacy tables) — see phase 2 above, all apply here too. One more specific to hierarchy: a
+   mutation revalidates the *new* canonical client URL, not a bookmarked old-id URL that might be open in
+   another tab — that tab shows fresh data on its next normal navigation, not instantly. Not fixed,
+   accepted as a minor edge case.
+4. **The hard/special ones, last** — Build, then Uni (schedule, hierarchy) and Community (optional
+   grouping). Uni's schedule stays a `custom` renderer.
 4. **The hard/special ones, last** — Uni (schedule, hierarchy) and Community (optional grouping). Uni's
    schedule stays a `custom` renderer.
 5. **Cross-cutting subsystems catch up** — Today aggregator, search, vault export, API v1 import, plan

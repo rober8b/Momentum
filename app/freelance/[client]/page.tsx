@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { and, eq, asc, desc, ne, sql } from 'drizzle-orm';
+import { and, eq, asc, desc, ne, or, sql } from 'drizzle-orm';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -11,6 +11,10 @@ import { ClientEditForm } from '@/components/freelance/ClientEditForm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { rowToFreelanceClient, rowToFreelanceTask } from '@/lib/today';
+import { isFreelanceDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { rowToPillar, rowToPillarItem } from '@/lib/pillars';
+import { PillarContainerPageContent } from '@/components/pillars/PillarContainerPageContent';
+import { FREELANCE_TEMPLATE } from '@/lib/pillar-templates';
 import type { FreelanceTaskStatus } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +45,12 @@ export default async function FreelanceClientPage({
 }) {
   const user = await requireUser();
   const { client: clientId } = await params;
+
+  // Rollback flag — see docs/DYNAMIC_PILLARS.md and lib/pillar-flags.ts.
+  if (isFreelanceDynamicEngineEnabled()) {
+    return <DynamicFreelanceClientPage userId={user.id} clientParam={clientId} />;
+  }
+
   const { donePage: donePageParam } = await searchParams;
   const donePage = Math.max(1, Number.parseInt(donePageParam ?? '1', 10) || 1);
   const doneOffset = (donePage - 1) * DONE_PAGE_SIZE;
@@ -139,5 +149,53 @@ export default async function FreelanceClientPage({
         })}
       </div>
     </div>
+  );
+}
+
+// Dynamic-engine path. The URL param can be either a pillar_items id (a
+// client created after cutover) or the original freelance_clients.id (a
+// bookmarked pre-cutover URL) — matching on fields.legacy_id keeps old
+// links working permanently without a redirect table. See
+// docs/DYNAMIC_PILLARS.md.
+async function DynamicFreelanceClientPage({ userId, clientParam }: { userId: string; clientParam: string }) {
+  const [pillarRow] = await db
+    .select()
+    .from(schema.pillars)
+    .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, FREELANCE_TEMPLATE.key)))
+    .limit(1);
+  if (!pillarRow) notFound();
+  const pillar = rowToPillar(pillarRow);
+
+  const [containerRow] = await db
+    .select()
+    .from(schema.pillarItems)
+    .where(and(
+      eq(schema.pillarItems.pillar_id, pillar.id),
+      eq(schema.pillarItems.user_id, userId),
+      eq(schema.pillarItems.is_container, true),
+      or(
+        eq(schema.pillarItems.id, clientParam),
+        sql`${schema.pillarItems.fields}->>'legacy_id' = ${clientParam}`,
+      ),
+    ))
+    .limit(1);
+  if (!containerRow) notFound();
+  const container = rowToPillarItem(containerRow);
+
+  const childRows = await db
+    .select()
+    .from(schema.pillarItems)
+    .where(and(eq(schema.pillarItems.parent_item_id, container.id), eq(schema.pillarItems.user_id, userId)))
+    .orderBy(schema.pillarItems.position, schema.pillarItems.created_at);
+  const children = childRows.map(rowToPillarItem);
+
+  return (
+    <PillarContainerPageContent
+      pillar={pillar}
+      container={container}
+      children={children}
+      basePath="/freelance"
+      childLabel="nueva tarea"
+    />
   );
 }

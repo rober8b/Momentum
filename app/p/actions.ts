@@ -19,24 +19,43 @@ async function getOwnedPillar(userId: string, pillarId: string): Promise<PillarR
   return pillar ?? null;
 }
 
-function isValidStatus(pillar: PillarRow, status: string): boolean {
-  return pillar.status_workflow.some((s) => s.key === status);
+// Hierarchical pillars (Freelance: client -> task) keep two status
+// workflows: the pillar's own (for container items, e.g. clients) and
+// config.childView's (for items with a parent, e.g. tasks). See
+// docs/DYNAMIC_PILLARS.md locked decision #3 and lib/pillars.ts's
+// statusWorkflowFor, which this mirrors for the raw DB row shape used here.
+function statusWorkflowFor(pillar: PillarRow, hasParent: boolean) {
+  if (hasParent && pillar.config.childView) return pillar.config.childView.status_workflow;
+  return pillar.status_workflow;
+}
+
+function isValidStatus(pillar: PillarRow, status: string, hasParent: boolean): boolean {
+  return statusWorkflowFor(pillar, hasParent).some((s) => s.key === status);
 }
 
 // Pillars that have a legacy, pre-dynamic-engine route still live at a fixed
-// URL (e.g. /projects), gated behind a rollback flag (lib/pillar-flags.ts).
-// While that flag is on, that route reads the same pillar_items this file
-// writes — so a mutation here must also revalidate the legacy path, or it
-// goes stale until the next unrelated navigation. Add an entry here whenever
-// a new pillar gets cut over (see docs/DYNAMIC_PILLARS.md phase 2+).
+// URL (e.g. /projects, /freelance), gated behind a rollback flag
+// (lib/pillar-flags.ts). While that flag is on, that route reads the same
+// pillar_items this file writes — so a mutation here must also revalidate
+// the legacy path, or it goes stale until the next unrelated navigation.
+// Add an entry here whenever a new pillar gets cut over (see
+// docs/DYNAMIC_PILLARS.md phase 2+).
 const LEGACY_PILLAR_ROUTES: Record<string, string> = {
   projects: '/projects',
+  freelance: '/freelance',
 };
 
-function revalidatePillarRoutes(key: string): void {
+function revalidatePillarRoutes(key: string, parentItemId?: string | null): void {
   revalidatePath(`/p/${key}`);
   const legacyPath = LEGACY_PILLAR_ROUTES[key];
   if (legacyPath) revalidatePath(legacyPath);
+  // A child item's own page is its container's drill-down view, not the
+  // pillar's top-level listing — revalidate that too so e.g. moving a task
+  // between kanban columns shows up without a hard refresh.
+  if (parentItemId) {
+    revalidatePath(`/p/${key}/${parentItemId}`);
+    if (legacyPath) revalidatePath(`${legacyPath}/${parentItemId}`);
+  }
 }
 
 export async function instantiateTemplate(templateKey: string): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -94,7 +113,7 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
   const parsed = createItemSchema.parse(input);
   const pillar = await getOwnedPillar(user.id, parsed.pillarId);
   if (!pillar) return { ok: false, error: 'pilar no encontrado' };
-  if (!isValidStatus(pillar, parsed.status)) {
+  if (!isValidStatus(pillar, parsed.status, Boolean(parsed.parent_item_id))) {
     return { ok: false, error: `estado inválido para este pilar: "${parsed.status}"` };
   }
 
@@ -125,14 +144,14 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
     .returning({ id: schema.pillarItems.id });
 
   logAudit({ userId: user.id, action: 'create', entityType: 'pillar_item', entityId: row?.id, metadata: { pillar: pillar.key } });
-  revalidatePillarRoutes(pillar.key);
+  revalidatePillarRoutes(pillar.key, parsed.parent_item_id);
   return { ok: true };
 }
 
 export async function updatePillarItemStatus(itemId: string, status: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
   const [item] = await db
-    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id })
+    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id, parent_item_id: schema.pillarItems.parent_item_id })
     .from(schema.pillarItems)
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)))
     .limit(1);
@@ -140,10 +159,11 @@ export async function updatePillarItemStatus(itemId: string, status: string): Pr
 
   const pillar = await getOwnedPillar(user.id, item.pillar_id);
   if (!pillar) return { ok: false, error: 'pilar no encontrado' };
-  if (!isValidStatus(pillar, status)) {
+  const hasParent = Boolean(item.parent_item_id);
+  if (!isValidStatus(pillar, status, hasParent)) {
     return { ok: false, error: `estado inválido para este pilar: "${status}"` };
   }
-  const isTerminal = pillar.status_workflow.find((s) => s.key === status)?.is_terminal ?? false;
+  const isTerminal = statusWorkflowFor(pillar, hasParent).find((s) => s.key === status)?.is_terminal ?? false;
 
   await db
     .update(schema.pillarItems)
@@ -151,7 +171,7 @@ export async function updatePillarItemStatus(itemId: string, status: string): Pr
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
   logAudit({ userId: user.id, action: 'update', entityType: 'pillar_item', entityId: itemId, metadata: { status } });
-  revalidatePillarRoutes(pillar.key);
+  revalidatePillarRoutes(pillar.key, item.parent_item_id);
   return { ok: true };
 }
 
@@ -166,7 +186,7 @@ export async function updatePillarItem(itemId: string, patch: z.input<typeof pat
   const user = await requireUser();
   const parsed = patchItemSchema.parse(patch);
   const [item] = await db
-    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id })
+    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id, parent_item_id: schema.pillarItems.parent_item_id })
     .from(schema.pillarItems)
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)))
     .limit(1);
@@ -180,14 +200,14 @@ export async function updatePillarItem(itemId: string, patch: z.input<typeof pat
     .set({ ...parsed, updated_at: new Date() })
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
-  revalidatePillarRoutes(pillar.key);
+  revalidatePillarRoutes(pillar.key, item.parent_item_id);
   return { ok: true };
 }
 
 export async function deletePillarItem(itemId: string): Promise<void> {
   const user = await requireUser();
   const [item] = await db
-    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id })
+    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id, parent_item_id: schema.pillarItems.parent_item_id })
     .from(schema.pillarItems)
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)))
     .limit(1);
@@ -198,5 +218,5 @@ export async function deletePillarItem(itemId: string): Promise<void> {
   await db.delete(schema.pillarItems).where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
   logAudit({ userId: user.id, action: 'delete', entityType: 'pillar_item', entityId: itemId });
-  if (pillar) revalidatePillarRoutes(pillar.key);
+  if (pillar) revalidatePillarRoutes(pillar.key, item.parent_item_id);
 }

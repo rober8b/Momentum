@@ -1,33 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Trash2, LayoutGrid } from 'lucide-react';
+import Link from 'next/link';
+import { Trash2, LayoutGrid, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { updatePillarItemStatus, deletePillarItem } from '@/app/p/actions';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/lib/hooks/useToast';
+import { badgeVariant, readCardField } from './pillar-render-utils';
 import type { Pillar, PillarItem, PillarStatusStep } from '@/lib/types';
-
-type BadgeVariant = 'default' | 'accent' | 'warning' | 'danger' | 'success' | 'muted';
-const BADGE_VARIANTS = new Set<string>(['default', 'accent', 'warning', 'danger', 'success', 'muted']);
-
-function badgeVariant(color: string | undefined): BadgeVariant {
-  return color && BADGE_VARIANTS.has(color) ? (color as BadgeVariant) : 'default';
-}
-
-// Reads a cardFields entry against the item. Plain keys read typed columns
-// (description, status); 'fields.x' keys read the jsonb fields bag.
-// See docs/DYNAMIC_PILLARS.md — "config shape per view type".
-function readCardField(item: PillarItem, key: string): string | null {
-  if (key.startsWith('fields.')) {
-    const value = item.fields[key.slice('fields.'.length)];
-    return typeof value === 'string' && value ? value : null;
-  }
-  if (key === 'description') return item.description;
-  if (key === 'status') return null; // status is rendered as the badge, not as text
-  return null;
-}
 
 function nextStatus(workflow: PillarStatusStep[], current: string): string {
   const idx = workflow.findIndex((s) => s.key === current);
@@ -35,7 +17,7 @@ function nextStatus(workflow: PillarStatusStep[], current: string): string {
   return workflow[(idx + 1) % workflow.length].key;
 }
 
-function ItemCard({ item, pillar }: { item: PillarItem; pillar: Pillar }) {
+function ItemCard({ item, pillar, basePath }: { item: PillarItem; pillar: Pillar; basePath: string }) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState(item.status);
   const toast = useToast();
@@ -68,7 +50,17 @@ function ItemCard({ item, pillar }: { item: PillarItem; pillar: Pillar }) {
           <button type="button" onClick={cycleStatus} disabled={isPending} className="mb-1" title={`cambiar estado (siguiente: ${nextStatus(pillar.status_workflow, status)})`}>
             <Badge variant={badgeVariant(step?.color)}>{step?.label ?? status}</Badge>
           </button>
-          <h3 className="text-sm font-semibold leading-tight">{item.title}</h3>
+          {item.is_container ? (
+            <Link
+              href={`${basePath}/${item.id}`}
+              className="flex items-center gap-1 text-sm font-semibold leading-tight hover:text-accent transition-colors"
+            >
+              {item.title}
+              <ChevronRight size={14} className="shrink-0 opacity-60" />
+            </Link>
+          ) : (
+            <h3 className="text-sm font-semibold leading-tight">{item.title}</h3>
+          )}
         </div>
         <button
           type="button"
@@ -94,7 +86,21 @@ function ItemCard({ item, pillar }: { item: PillarItem; pillar: Pillar }) {
   );
 }
 
-export function GenericGrid({ pillar, items }: { pillar: Pillar; items: PillarItem[] }) {
+export function GenericGrid({
+  pillar,
+  items,
+  basePath,
+}: {
+  pillar: Pillar;
+  items: PillarItem[];
+  // Where a container item's card should link to drill into its children.
+  // Defaults to the generic /p/[key] browser; a legacy-route cutover (e.g.
+  // /freelance) passes its own basePath so links stay on that URL. See
+  // docs/DYNAMIC_PILLARS.md.
+  basePath?: string;
+}) {
+  const resolvedBasePath = basePath ?? `/p/${pillar.key}`;
+
   if (items.length === 0) {
     return <EmptyState icon={LayoutGrid} title="sin items todavía" description="agregá el primero con el formulario de arriba." />;
   }
@@ -102,7 +108,7 @@ export function GenericGrid({ pillar, items }: { pillar: Pillar; items: PillarIt
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {items.map((item) => (
-        <ItemCard key={item.id} item={item} pillar={pillar} />
+        <ItemCard key={item.id} item={item} pillar={pillar} basePath={resolvedBasePath} />
       ))}
     </div>
   );
