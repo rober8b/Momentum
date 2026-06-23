@@ -116,11 +116,24 @@ so it's written down before it's needed, not improvised under pressure.
 
 ## Phasing (6 phases, from the Sprint A proposal)
 
-0. **Schema only** (this sprint) — additive tables, nothing reads/writes them yet.
-1. **Prove the engine on one pillar, additively** (this sprint) — Projects, alongside the untouched
+0. **Schema only** (done, Sprint B) — additive tables, nothing reads/writes them yet.
+1. **Prove the engine on one pillar, additively** (done, Sprint B) — Projects, alongside the untouched
    `/projects`.
-2. **Cutover Projects for real** — migrate `own_projects` data, flip `/projects` to the new tables, keep
-   the old table around as a safety net.
+2. **Cutover Projects, locally** (done, Sprint B) — `scripts/migrate-projects.ts` migrates `own_projects`
+   into `pillars`/`pillar_items` (idempotent, read-only on the source); `/projects` reads from the dynamic
+   engine when `PROJECTS_DYNAMIC_ENGINE` (`lib/pillar-flags.ts`) is on, the old `own_projects` path
+   verbatim when it's off. **Local only — prod/Railway has not been touched.** The prod cutover (running
+   the migration against Railway, then deciding whether to flip the flag there) is a separate, later,
+   manual/supervised step — not a continuation of this phase.
+
+   Known gaps accepted for this phase, not yet fixed:
+   - GitHub last-push isn't rendered by `GenericGrid` — the data is preserved (`fields.links.repo`
+     survives the migration unchanged), just not displayed yet.
+   - No pagination for archived items in the dynamic path — `GenericGrid` renders everything in one grid.
+     Fine at personal-app scale; revisit if this becomes the long-term path for high-volume pillars.
+   - Today, search, vault export, plan limits, and API v1 import still read `own_projects` exclusively —
+     Projects data is temporarily duplicated (real in `own_projects`, mirrored in `pillar_items`) until
+     phase 5 catches those up.
 3. **Hierarchy + a second view type** — Freelance (client→task, kanban) or Build next.
 4. **The hard/special ones, last** — Uni (schedule, hierarchy) and Community (optional grouping). Uni's
    schedule stays a `custom` renderer.

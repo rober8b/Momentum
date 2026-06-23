@@ -23,6 +23,22 @@ function isValidStatus(pillar: PillarRow, status: string): boolean {
   return pillar.status_workflow.some((s) => s.key === status);
 }
 
+// Pillars that have a legacy, pre-dynamic-engine route still live at a fixed
+// URL (e.g. /projects), gated behind a rollback flag (lib/pillar-flags.ts).
+// While that flag is on, that route reads the same pillar_items this file
+// writes — so a mutation here must also revalidate the legacy path, or it
+// goes stale until the next unrelated navigation. Add an entry here whenever
+// a new pillar gets cut over (see docs/DYNAMIC_PILLARS.md phase 2+).
+const LEGACY_PILLAR_ROUTES: Record<string, string> = {
+  projects: '/projects',
+};
+
+function revalidatePillarRoutes(key: string): void {
+  revalidatePath(`/p/${key}`);
+  const legacyPath = LEGACY_PILLAR_ROUTES[key];
+  if (legacyPath) revalidatePath(legacyPath);
+}
+
 export async function instantiateTemplate(templateKey: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
   const template = PILLAR_TEMPLATES[templateKey];
@@ -109,7 +125,7 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
     .returning({ id: schema.pillarItems.id });
 
   logAudit({ userId: user.id, action: 'create', entityType: 'pillar_item', entityId: row?.id, metadata: { pillar: pillar.key } });
-  revalidatePath(`/p/${pillar.key}`);
+  revalidatePillarRoutes(pillar.key);
   return { ok: true };
 }
 
@@ -135,7 +151,7 @@ export async function updatePillarItemStatus(itemId: string, status: string): Pr
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
   logAudit({ userId: user.id, action: 'update', entityType: 'pillar_item', entityId: itemId, metadata: { status } });
-  revalidatePath(`/p/${pillar.key}`);
+  revalidatePillarRoutes(pillar.key);
   return { ok: true };
 }
 
@@ -164,7 +180,7 @@ export async function updatePillarItem(itemId: string, patch: z.input<typeof pat
     .set({ ...parsed, updated_at: new Date() })
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
-  revalidatePath(`/p/${pillar.key}`);
+  revalidatePillarRoutes(pillar.key);
   return { ok: true };
 }
 
@@ -182,5 +198,5 @@ export async function deletePillarItem(itemId: string): Promise<void> {
   await db.delete(schema.pillarItems).where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)));
 
   logAudit({ userId: user.id, action: 'delete', entityType: 'pillar_item', entityId: itemId });
-  if (pillar) revalidatePath(`/p/${pillar.key}`);
+  if (pillar) revalidatePillarRoutes(pillar.key);
 }

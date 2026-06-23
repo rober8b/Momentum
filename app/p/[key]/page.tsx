@@ -3,14 +3,11 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { rowToPillar, rowToPillarItem } from '@/lib/pillars';
-import { GenericGrid } from '@/components/pillars/GenericGrid';
-import { PillarItemForm } from '@/components/pillars/PillarItemForm';
+import { PillarPageContent } from '@/components/pillars/PillarPageContent';
 
 export const dynamic = 'force-dynamic';
 
-// Generic pillar renderer — picks the view component by pillar.view_type.
-// Only 'grid' exists this sprint (proven on Projects); list/kanban/custom
-// follow the same pattern later. See docs/DYNAMIC_PILLARS.md.
+// Generic pillar browser by key. See docs/DYNAMIC_PILLARS.md.
 export default async function PillarPage({ params }: { params: Promise<{ key: string }> }) {
   const user = await requireUser();
   const { key } = await params;
@@ -30,23 +27,5 @@ export default async function PillarPage({ params }: { params: Promise<{ key: st
     .orderBy(schema.pillarItems.position, schema.pillarItems.created_at);
   const items = itemRows.map(rowToPillarItem);
 
-  return (
-    <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-7xl">
-      <div className="mb-6 lg:mb-8 flex items-end justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">pilar dinámico</p>
-          <h2 className="text-2xl lg:text-3xl font-semibold mt-1">{pillar.name}</h2>
-          {pillar.description && <p className="text-xs text-muted-foreground mt-1">{pillar.description}</p>}
-        </div>
-        <PillarItemForm pillar={pillar} />
-      </div>
-
-      {pillar.view_type === 'grid' && <GenericGrid pillar={pillar} items={items} />}
-      {pillar.view_type !== 'grid' && (
-        <p className="text-sm text-muted-foreground">
-          view_type &quot;{pillar.view_type}&quot; todavía no tiene un renderer genérico — fuera de scope de Sprint B.
-        </p>
-      )}
-    </div>
-  );
+  return <PillarPageContent pillar={pillar} items={items} />;
 }
