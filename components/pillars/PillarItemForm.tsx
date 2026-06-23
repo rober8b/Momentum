@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { FormDialog } from '@/components/ui/FormDialog';
 import { createPillarItem } from '@/app/p/actions';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/lib/hooks/useToast';
@@ -37,8 +38,8 @@ export function PillarItemForm({ pillar }: { pillar: Pillar }) {
     });
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -47,51 +48,50 @@ export function PillarItemForm({ pillar }: { pillar: Pillar }) {
         <Plus size={12} />
         nuevo item
       </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="rounded-md border border-border bg-surface-elev p-3 space-y-2 w-full max-w-sm">
-      <input
-        autoFocus
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="título"
-        className={cn(
-          'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent',
-        )}
-      />
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="descripción (opcional)"
-        rows={2}
-        className={cn(
-          'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
-        )}
-      />
-      <select
-        value={status}
-        onChange={(e) => setStatus(e.target.value)}
-        className="w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
-      >
-        {pillar.status_workflow.map((s) => (
-          <option key={s.key} value={s.key}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          cancelar
-        </Button>
-        <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
-          agregar
-        </Button>
-      </div>
-    </form>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="nuevo item">
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            autoFocus
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="título"
+            className={cn(
+              'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent',
+            )}
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="descripción (opcional)"
+            rows={2}
+            className={cn(
+              'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
+            )}
+          />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
+          >
+            {pillar.status_workflow.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              cancelar
+            </Button>
+            <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
+              agregar
+            </Button>
+          </div>
+        </form>
+      </FormDialog>
+    </>
   );
 }

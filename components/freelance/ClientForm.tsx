@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { FormDialog } from '@/components/ui/FormDialog';
 import { createClient } from '@/app/freelance/actions';
 import { cn } from '@/lib/cn';
 import { limitReachedMessage } from '@/lib/strings';
@@ -38,8 +39,8 @@ export function ClientForm() {
     });
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -48,50 +49,49 @@ export function ClientForm() {
         <Plus size={12} />
         nuevo cliente
       </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="rounded-md border border-border bg-surface-elev p-3 space-y-2 w-full max-w-sm">
-      <input
-        autoFocus
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre del cliente"
-        className={cn(
-          'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent',
-        )}
-      />
-      <input
-        type="text"
-        value={stack}
-        onChange={(e) => setStack(e.target.value)}
-        placeholder="Stack (ej: Next.js, Prisma)"
-        className={cn(
-          'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
-        )}
-      />
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Descripción (opcional)"
-        rows={2}
-        className={cn(
-          'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
-        )}
-      />
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          cancelar
-        </Button>
-        <Button type="submit" size="sm" disabled={isPending || !name.trim()}>
-          agregar
-        </Button>
-      </div>
-    </form>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="nuevo cliente">
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre del cliente"
+            className={cn(
+              'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent',
+            )}
+          />
+          <input
+            type="text"
+            value={stack}
+            onChange={(e) => setStack(e.target.value)}
+            placeholder="Stack (ej: Next.js, Prisma)"
+            className={cn(
+              'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
+            )}
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Descripción (opcional)"
+            rows={2}
+            className={cn(
+              'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
+            )}
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              cancelar
+            </Button>
+            <Button type="submit" size="sm" disabled={isPending || !name.trim()}>
+              agregar
+            </Button>
+          </div>
+        </form>
+      </FormDialog>
+    </>
   );
 }

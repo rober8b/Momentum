@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { FormDialog } from '@/components/ui/FormDialog';
 import { createAssignment } from '@/app/uni/actions';
 import { cn } from '@/lib/cn';
 import { limitReachedMessage } from '@/lib/strings';
@@ -39,8 +40,8 @@ export function AssignmentForm({ subjects }: { subjects: Subject[] }) {
     });
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -49,57 +50,56 @@ export function AssignmentForm({ subjects }: { subjects: Subject[] }) {
         <Plus size={12} />
         nuevo TP
       </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="rounded-md border border-border bg-surface-elev p-3 space-y-2">
-      <input
-        autoFocus
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Título del TP"
-        className={cn(
-          'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent',
-        )}
-      />
-      <div className="flex items-center gap-2">
-        <select
-          value={subjectId}
-          onChange={(e) => setSubjectId(e.target.value)}
-          className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1"
-        >
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
-        />
-      </div>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Descripción (opcional)"
-        rows={2}
-        className={cn(
-          'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
-        )}
-      />
-      <div className="flex items-center justify-end gap-2">
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={isPending || !title.trim() || !subjectId}>
-          agregar
-        </Button>
-      </div>
-    </form>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="nuevo TP">
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            autoFocus
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Título del TP"
+            className={cn(
+              'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent',
+            )}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs flex-1 min-w-0"
+            >
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
+            />
+          </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Descripción (opcional)"
+            rows={2}
+            className={cn(
+              'w-full resize-none rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
+            )}
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={isPending || !title.trim() || !subjectId}>
+              agregar
+            </Button>
+          </div>
+        </form>
+      </FormDialog>
+    </>
   );
 }

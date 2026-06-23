@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { FormDialog } from '@/components/ui/FormDialog';
 import { createFreelanceTask } from '@/app/freelance/actions';
 import { cn } from '@/lib/cn';
 import { limitReachedMessage } from '@/lib/strings';
@@ -41,8 +42,8 @@ export function TaskForm({
     });
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -51,40 +52,39 @@ export function TaskForm({
         <Plus size={12} />
         agregar
       </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="rounded-md border border-border bg-surface-elev p-3 space-y-2">
-      <input
-        autoFocus
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Título de la tarea"
-        className={cn(
-          'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
-          'focus:outline-none focus:border-accent',
-        )}
-      />
-      <div className="flex items-center gap-2">
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as WorkblockPriority)}
-          className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
-        >
-          <option value="low">low</option>
-          <option value="med">med</option>
-          <option value="high">high</option>
-        </select>
-        <div className="flex-1" />
-        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          cancelar
-        </Button>
-        <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
-          agregar
-        </Button>
-      </div>
-    </form>
+      <FormDialog open={open} onClose={() => setOpen(false)} title="nueva tarea">
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            autoFocus
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Título de la tarea"
+            className={cn(
+              'w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm',
+              'focus:outline-none focus:border-accent',
+            )}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as WorkblockPriority)}
+              className="rounded-sm border border-border bg-surface px-2 py-1 text-xs"
+            >
+              <option value="low">low</option>
+              <option value="med">med</option>
+              <option value="high">high</option>
+            </select>
+            <div className="flex-1" />
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              cancelar
+            </Button>
+            <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
+              agregar
+            </Button>
+          </div>
+        </form>
+      </FormDialog>
+    </>
   );
 }
