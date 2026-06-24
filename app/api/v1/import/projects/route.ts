@@ -4,6 +4,9 @@ import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
 import { checkLimit } from '@/lib/limits';
+import { isProjectsDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { PROJECTS_TEMPLATE } from '@/lib/pillar-templates';
+import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +45,11 @@ export async function POST(request: Request) {
     const limitCheck = await checkLimit(userId, 'own_projects');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
 
+    // Phase 5b: when Projects is on the dynamic engine, import goes to
+    // pillar_items — the legacy own_projects table would otherwise become
+    // invisible to /projects' own UI. See docs/DYNAMIC_PILLARS.md.
+    const pillarId = isProjectsDynamicEngineEnabled() ? await ensurePillarForUser(userId, PROJECTS_TEMPLATE) : null;
+
     for (let i = 0; i < parsed.data.projects.length; i++) {
       if (i >= remaining) {
         errors.push({ index: i, error: `plan limit reached (${limitCheck.limit} projects)` });
@@ -49,20 +57,33 @@ export async function POST(request: Request) {
       }
       const p = parsed.data.projects[i];
       try {
-        const [row] = await db
-          .insert(schema.ownProjects)
-          .values({
-            user_id: userId,
-            name: p.name,
+        if (pillarId) {
+          const id = await insertPillarItem({
+            userId,
+            pillarId,
+            isContainer: false,
+            title: p.name,
             description: p.description ?? null,
             status: p.status,
-            icon: p.icon ?? null,
-            last_update: p.last_update ?? null,
-            next_step: p.next_step ?? null,
-            links: p.links ?? {},
-          })
-          .returning({ id: schema.ownProjects.id });
-        if (row) imported.push(row.id);
+            fields: { icon: p.icon ?? null, last_update: p.last_update ?? null, next_step: p.next_step ?? null, links: p.links ?? {} },
+          });
+          imported.push(id);
+        } else {
+          const [row] = await db
+            .insert(schema.ownProjects)
+            .values({
+              user_id: userId,
+              name: p.name,
+              description: p.description ?? null,
+              status: p.status,
+              icon: p.icon ?? null,
+              last_update: p.last_update ?? null,
+              next_step: p.next_step ?? null,
+              links: p.links ?? {},
+            })
+            .returning({ id: schema.ownProjects.id });
+          if (row) imported.push(row.id);
+        }
       } catch (err) {
         errors.push({ index: i, error: err instanceof Error ? err.message : 'unknown error' });
       }

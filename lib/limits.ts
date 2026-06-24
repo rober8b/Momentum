@@ -7,6 +7,13 @@ import 'server-only';
 import { count, eq, and, isNull } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { PLAN_LIMITS, type LimitedResource } from '@/lib/plans';
+import {
+  isProjectsDynamicEngineEnabled,
+  isFreelanceDynamicEngineEnabled,
+  isCommunityDynamicEngineEnabled,
+  isUniDynamicEngineEnabled,
+} from '@/lib/pillar-flags';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
 import type { UserPlan } from '@/lib/types';
 
 export type { LimitedResource } from '@/lib/plans';
@@ -38,9 +45,26 @@ export type LimitReachedError = {
 
 const UNLIMITED_CHECK: LimitCheck = { allowed: true, current: 0, limit: null };
 
+// Phase 5b: for a cut-over pillar, new items live in pillar_items, not the
+// legacy table — counting the legacy table only would undercount (or, once
+// a pillar's legacy table stops getting writes entirely, count zero).
+async function countPillarItems(userId: string, pillarKey: string, isContainer: boolean): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(schema.pillarItems)
+    .innerJoin(schema.pillars, eq(schema.pillars.id, schema.pillarItems.pillar_id))
+    .where(and(
+      eq(schema.pillars.user_id, userId),
+      eq(schema.pillars.key, pillarKey),
+      eq(schema.pillarItems.is_container, isContainer),
+    ));
+  return Number(row?.value ?? 0);
+}
+
 async function countResource(userId: string, resource: LimitedResource): Promise<number> {
   switch (resource) {
     case 'assignments': {
+      if (isUniDynamicEngineEnabled()) return countPillarItems(userId, UNI_TEMPLATE.key, false);
       const [row] = await db.select({ value: count() }).from(schema.assignments).where(eq(schema.assignments.user_id, userId));
       return Number(row?.value ?? 0);
     }
@@ -53,22 +77,27 @@ async function countResource(userId: string, resource: LimitedResource): Promise
       return Number(row?.value ?? 0);
     }
     case 'freelance_clients': {
+      if (isFreelanceDynamicEngineEnabled()) return countPillarItems(userId, FREELANCE_TEMPLATE.key, true);
       const [row] = await db.select({ value: count() }).from(schema.freelanceClients).where(eq(schema.freelanceClients.user_id, userId));
       return Number(row?.value ?? 0);
     }
     case 'freelance_tasks': {
+      if (isFreelanceDynamicEngineEnabled()) return countPillarItems(userId, FREELANCE_TEMPLATE.key, false);
       const [row] = await db.select({ value: count() }).from(schema.freelanceTasks).where(eq(schema.freelanceTasks.user_id, userId));
       return Number(row?.value ?? 0);
     }
     case 'own_projects': {
+      if (isProjectsDynamicEngineEnabled()) return countPillarItems(userId, PROJECTS_TEMPLATE.key, false);
       const [row] = await db.select({ value: count() }).from(schema.ownProjects).where(eq(schema.ownProjects.user_id, userId));
       return Number(row?.value ?? 0);
     }
     case 'organizations': {
+      if (isCommunityDynamicEngineEnabled()) return countPillarItems(userId, COMMUNITY_TEMPLATE.key, true);
       const [row] = await db.select({ value: count() }).from(schema.organizations).where(eq(schema.organizations.user_id, userId));
       return Number(row?.value ?? 0);
     }
     case 'community_items': {
+      if (isCommunityDynamicEngineEnabled()) return countPillarItems(userId, COMMUNITY_TEMPLATE.key, false);
       const [row] = await db.select({ value: count() }).from(schema.communityItems).where(eq(schema.communityItems.user_id, userId));
       return Number(row?.value ?? 0);
     }

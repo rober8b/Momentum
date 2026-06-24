@@ -6,6 +6,14 @@ import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { checkLimit } from '@/lib/limits';
 import { logAudit } from '@/lib/audit';
+import {
+  isProjectsDynamicEngineEnabled,
+  isFreelanceDynamicEngineEnabled,
+  isCommunityDynamicEngineEnabled,
+  isUniDynamicEngineEnabled,
+} from '@/lib/pillar-flags';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 const SAMPLE_COUNTS = {
   assignments: 4,
@@ -32,12 +40,22 @@ function revalidateAll() {
 export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipped?: string[] }> {
   const user = await requireUser();
 
-  const [existing] = await db
-    .select({ id: schema.subjects.id })
-    .from(schema.subjects)
-    .where(and(eq(schema.subjects.user_id, user.id), eq(schema.subjects.is_sample, true)))
-    .limit(1);
-  if (existing) return { alreadyLoaded: true };
+  // Phase 5b: when Uni is on the dynamic engine, sample subjects land in
+  // pillar_items, not the legacy subjects table — check there instead, or
+  // a re-click of "load sample data" would insert a second copy.
+  const existing = isUniDynamicEngineEnabled()
+    ? await db
+        .select({ id: schema.pillarItems.id })
+        .from(schema.pillarItems)
+        .innerJoin(schema.pillars, eq(schema.pillars.id, schema.pillarItems.pillar_id))
+        .where(and(eq(schema.pillars.user_id, user.id), eq(schema.pillars.key, UNI_TEMPLATE.key), eq(schema.pillarItems.is_sample, true)))
+        .limit(1)
+    : await db
+        .select({ id: schema.subjects.id })
+        .from(schema.subjects)
+        .where(and(eq(schema.subjects.user_id, user.id), eq(schema.subjects.is_sample, true)))
+        .limit(1);
+  if (existing.length > 0) return { alreadyLoaded: true };
 
   const [
     assignmentsCheck,
@@ -82,43 +100,74 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
   else if (!includeCommunityItems) skipped.push('community_items');
 
   // ── SUBJECTS (no plan limit — always inserted) ──────────────────────────
-  const subjectRows = await db
-    .insert(schema.subjects)
-    .values([
-      {
-        user_id: user.id,
-        name: 'Product Management',
-        semester: '2026-1',
-        schedule: [
+  // Phase 5b: when Uni is on the dynamic engine, sample subjects go to
+  // pillar_items (as containers, with fields.schedule/semester/vault_slug)
+  // instead of the legacy subjects table — otherwise they'd be invisible to
+  // /uni's own UI.
+  let s1: string, s2: string, s3: string;
+  let uniPillarId: string | null = null;
+  if (isUniDynamicEngineEnabled()) {
+    uniPillarId = await ensurePillarForUser(user.id, UNI_TEMPLATE);
+    const subjectStatus = UNI_TEMPLATE.status_workflow[0].key;
+    [s1, s2, s3] = await Promise.all([
+      insertPillarItem({
+        userId: user.id, pillarId: uniPillarId, isContainer: true, title: 'Product Management', status: subjectStatus, isSample: true,
+        fields: { semester: '2026-1', vault_slug: 'product-management', schedule: [
           { day: 'mon', start: '09:00', end: '11:00', room: 'Room 201' },
           { day: 'wed', start: '09:00', end: '11:00', room: 'Room 201' },
-        ],
-        vault_slug: 'product-management',
-        is_sample: true,
-      },
-      {
-        user_id: user.id,
-        name: 'Data Analytics',
-        semester: '2026-1',
-        schedule: [{ day: 'tue', start: '14:00', end: '17:00', room: 'Lab A' }],
-        vault_slug: 'data-analytics',
-        is_sample: true,
-      },
-      {
-        user_id: user.id,
-        name: 'Business Strategy',
-        semester: '2026-1',
-        schedule: [
+        ] },
+      }),
+      insertPillarItem({
+        userId: user.id, pillarId: uniPillarId, isContainer: true, title: 'Data Analytics', status: subjectStatus, isSample: true,
+        fields: { semester: '2026-1', vault_slug: 'data-analytics', schedule: [{ day: 'tue', start: '14:00', end: '17:00', room: 'Lab A' }] },
+      }),
+      insertPillarItem({
+        userId: user.id, pillarId: uniPillarId, isContainer: true, title: 'Business Strategy', status: subjectStatus, isSample: true,
+        fields: { semester: '2026-1', vault_slug: 'business-strategy', schedule: [
           { day: 'thu', start: '18:00', end: '21:00', room: 'Auditorium' },
           { day: 'fri', start: '10:00', end: '12:00', room: 'Room 105' },
-        ],
-        vault_slug: 'business-strategy',
-        is_sample: true,
-      },
-    ])
-    .returning({ id: schema.subjects.id });
+        ] },
+      }),
+    ]);
+  } else {
+    const subjectRows = await db
+      .insert(schema.subjects)
+      .values([
+        {
+          user_id: user.id,
+          name: 'Product Management',
+          semester: '2026-1',
+          schedule: [
+            { day: 'mon', start: '09:00', end: '11:00', room: 'Room 201' },
+            { day: 'wed', start: '09:00', end: '11:00', room: 'Room 201' },
+          ],
+          vault_slug: 'product-management',
+          is_sample: true,
+        },
+        {
+          user_id: user.id,
+          name: 'Data Analytics',
+          semester: '2026-1',
+          schedule: [{ day: 'tue', start: '14:00', end: '17:00', room: 'Lab A' }],
+          vault_slug: 'data-analytics',
+          is_sample: true,
+        },
+        {
+          user_id: user.id,
+          name: 'Business Strategy',
+          semester: '2026-1',
+          schedule: [
+            { day: 'thu', start: '18:00', end: '21:00', room: 'Auditorium' },
+            { day: 'fri', start: '10:00', end: '12:00', room: 'Room 105' },
+          ],
+          vault_slug: 'business-strategy',
+          is_sample: true,
+        },
+      ])
+      .returning({ id: schema.subjects.id });
 
-  const [s1, s2, s3] = subjectRows.map((r) => r.id);
+    [s1, s2, s3] = subjectRows.map((r) => r.id);
+  }
 
   // ── ASSIGNMENTS ──────────────────────────────────────────────────────────
   if (includeAssignments) {
@@ -126,12 +175,21 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
     const inWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const inTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    await db.insert(schema.assignments).values([
-      { user_id: user.id, subject_id: s1, title: 'Product Roadmap Case Study', description: 'Analyze a SaaS product roadmap and propose improvements', due_date: inWeek, status: 'todo', is_sample: true },
-      { user_id: user.id, subject_id: s2, title: 'Exploratory Data Analysis', description: 'EDA on the provided retail dataset using Python', due_date: inTwoWeeks, status: 'in-progress', is_sample: true },
-      { user_id: user.id, subject_id: s3, title: 'Competitive Analysis Report', description: 'Porter 5 forces analysis for assigned industry', due_date: today, status: 'todo', is_sample: true },
-      { user_id: user.id, subject_id: s1, title: 'User Research Interview', description: 'Conduct 3 user interviews and synthesize findings', due_date: inTwoWeeks, status: 'done', is_sample: true },
-    ]);
+    if (uniPillarId) {
+      await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: uniPillarId, parentItemId: s1, isContainer: false, title: 'Product Roadmap Case Study', description: 'Analyze a SaaS product roadmap and propose improvements', dueDate: inWeek, status: 'todo', isSample: true }),
+        insertPillarItem({ userId: user.id, pillarId: uniPillarId, parentItemId: s2, isContainer: false, title: 'Exploratory Data Analysis', description: 'EDA on the provided retail dataset using Python', dueDate: inTwoWeeks, status: 'in-progress', isSample: true }),
+        insertPillarItem({ userId: user.id, pillarId: uniPillarId, parentItemId: s3, isContainer: false, title: 'Competitive Analysis Report', description: 'Porter 5 forces analysis for assigned industry', dueDate: today, status: 'todo', isSample: true }),
+        insertPillarItem({ userId: user.id, pillarId: uniPillarId, parentItemId: s1, isContainer: false, title: 'User Research Interview', description: 'Conduct 3 user interviews and synthesize findings', dueDate: inTwoWeeks, status: 'done', isSample: true }),
+      ]);
+    } else {
+      await db.insert(schema.assignments).values([
+        { user_id: user.id, subject_id: s1, title: 'Product Roadmap Case Study', description: 'Analyze a SaaS product roadmap and propose improvements', due_date: inWeek, status: 'todo', is_sample: true },
+        { user_id: user.id, subject_id: s2, title: 'Exploratory Data Analysis', description: 'EDA on the provided retail dataset using Python', due_date: inTwoWeeks, status: 'in-progress', is_sample: true },
+        { user_id: user.id, subject_id: s3, title: 'Competitive Analysis Report', description: 'Porter 5 forces analysis for assigned industry', due_date: today, status: 'todo', is_sample: true },
+        { user_id: user.id, subject_id: s1, title: 'User Research Interview', description: 'Conduct 3 user interviews and synthesize findings', due_date: inTwoWeeks, status: 'done', is_sample: true },
+      ]);
+    }
   }
 
   // ── WORKBLOCKS ───────────────────────────────────────────────────────────
@@ -149,58 +207,111 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
   }
 
   // ── FREELANCE CLIENTS + TASKS ────────────────────────────────────────────
+  // Phase 5b: when Freelance is on the dynamic engine, sample clients/tasks
+  // go to pillar_items instead of the legacy tables.
   if (includeFreelanceClients) {
-    const clientRows = await db
-      .insert(schema.freelanceClients)
-      .values([
-        { user_id: user.id, name: 'Bakery Store', icon: '🥐', description: 'E-commerce for local artisan bakery', status: 'active', stack: 'Next.js 14, Prisma, Stripe', next_step: 'Deploy new checkout flow', last_update: 'Fixed cart bug on mobile', is_sample: true },
-        { user_id: user.id, name: 'Dental Clinic', icon: '🦷', description: 'Appointment booking system', status: 'active', stack: 'Next.js 14, Supabase', next_step: 'Add SMS reminders', last_update: 'Updated calendar UI', is_sample: true },
-      ])
-      .returning({ id: schema.freelanceClients.id });
-
-    const [fc1, fc2] = clientRows.map((r) => r.id);
-
-    if (includeFreelanceTasks) {
-      await db.insert(schema.freelanceTasks).values([
-        { user_id: user.id, client_id: fc1, title: 'Implement discount codes', status: 'in-progress', priority: 'high', is_sample: true },
-        { user_id: user.id, client_id: fc1, title: 'Optimize product image loading', status: 'backlog', priority: 'med', is_sample: true },
-        { user_id: user.id, client_id: fc2, title: 'Add patient history view', status: 'today', priority: 'high', is_sample: true },
-        { user_id: user.id, client_id: fc2, title: 'Fix email notification template', status: 'done', priority: 'med', is_sample: true },
+    if (isFreelanceDynamicEngineEnabled()) {
+      const freelancePillarId = await ensurePillarForUser(user.id, FREELANCE_TEMPLATE);
+      const [fc1, fc2] = await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: freelancePillarId, isContainer: true, title: 'Bakery Store', description: 'E-commerce for local artisan bakery', status: 'active', isSample: true, fields: { icon: '🥐', stack: 'Next.js 14, Prisma, Stripe', next_step: 'Deploy new checkout flow', last_update: 'Fixed cart bug on mobile' } }),
+        insertPillarItem({ userId: user.id, pillarId: freelancePillarId, isContainer: true, title: 'Dental Clinic', description: 'Appointment booking system', status: 'active', isSample: true, fields: { icon: '🦷', stack: 'Next.js 14, Supabase', next_step: 'Add SMS reminders', last_update: 'Updated calendar UI' } }),
       ]);
+
+      if (includeFreelanceTasks) {
+        await Promise.all([
+          insertPillarItem({ userId: user.id, pillarId: freelancePillarId, parentItemId: fc1, isContainer: false, title: 'Implement discount codes', status: 'in-progress', isSample: true, fields: { priority: 'high' } }),
+          insertPillarItem({ userId: user.id, pillarId: freelancePillarId, parentItemId: fc1, isContainer: false, title: 'Optimize product image loading', status: 'backlog', isSample: true, fields: { priority: 'med' } }),
+          insertPillarItem({ userId: user.id, pillarId: freelancePillarId, parentItemId: fc2, isContainer: false, title: 'Add patient history view', status: 'today', isSample: true, fields: { priority: 'high' } }),
+          insertPillarItem({ userId: user.id, pillarId: freelancePillarId, parentItemId: fc2, isContainer: false, title: 'Fix email notification template', status: 'done', isSample: true, fields: { priority: 'med' } }),
+        ]);
+      }
+    } else {
+      const clientRows = await db
+        .insert(schema.freelanceClients)
+        .values([
+          { user_id: user.id, name: 'Bakery Store', icon: '🥐', description: 'E-commerce for local artisan bakery', status: 'active', stack: 'Next.js 14, Prisma, Stripe', next_step: 'Deploy new checkout flow', last_update: 'Fixed cart bug on mobile', is_sample: true },
+          { user_id: user.id, name: 'Dental Clinic', icon: '🦷', description: 'Appointment booking system', status: 'active', stack: 'Next.js 14, Supabase', next_step: 'Add SMS reminders', last_update: 'Updated calendar UI', is_sample: true },
+        ])
+        .returning({ id: schema.freelanceClients.id });
+
+      const [fc1, fc2] = clientRows.map((r) => r.id);
+
+      if (includeFreelanceTasks) {
+        await db.insert(schema.freelanceTasks).values([
+          { user_id: user.id, client_id: fc1, title: 'Implement discount codes', status: 'in-progress', priority: 'high', is_sample: true },
+          { user_id: user.id, client_id: fc1, title: 'Optimize product image loading', status: 'backlog', priority: 'med', is_sample: true },
+          { user_id: user.id, client_id: fc2, title: 'Add patient history view', status: 'today', priority: 'high', is_sample: true },
+          { user_id: user.id, client_id: fc2, title: 'Fix email notification template', status: 'done', priority: 'med', is_sample: true },
+        ]);
+      }
     }
   }
 
   // ── OWN PROJECTS ──────────────────────────────────────────────────────────
+  // Phase 5b: when Projects is on the dynamic engine, sample projects go to
+  // pillar_items instead of the legacy table.
   if (includeOwnProjects) {
-    await db.insert(schema.ownProjects).values([
-      { user_id: user.id, name: 'SaaS Dashboard', icon: '📊', description: 'B2B analytics dashboard for SMBs', status: 'active', next_step: 'Build onboarding wizard', last_update: 'Completed auth flow', is_sample: true },
-      { user_id: user.id, name: 'CLI Tool', icon: '⚡', description: 'Developer productivity tool', status: 'active', next_step: 'Add autocomplete', last_update: 'Published v0.2.0', is_sample: true },
-      { user_id: user.id, name: 'Mobile App', icon: '📱', description: 'Fitness tracking app — on hold', status: 'paused', next_step: 'Resume after semester', last_update: 'Paused MVP work', is_sample: true },
-    ]);
+    if (isProjectsDynamicEngineEnabled()) {
+      const projectsPillarId = await ensurePillarForUser(user.id, PROJECTS_TEMPLATE);
+      await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: projectsPillarId, isContainer: false, title: 'SaaS Dashboard', description: 'B2B analytics dashboard for SMBs', status: 'active', isSample: true, fields: { icon: '📊', next_step: 'Build onboarding wizard', last_update: 'Completed auth flow' } }),
+        insertPillarItem({ userId: user.id, pillarId: projectsPillarId, isContainer: false, title: 'CLI Tool', description: 'Developer productivity tool', status: 'active', isSample: true, fields: { icon: '⚡', next_step: 'Add autocomplete', last_update: 'Published v0.2.0' } }),
+        insertPillarItem({ userId: user.id, pillarId: projectsPillarId, isContainer: false, title: 'Mobile App', description: 'Fitness tracking app — on hold', status: 'paused', isSample: true, fields: { icon: '📱', next_step: 'Resume after semester', last_update: 'Paused MVP work' } }),
+      ]);
+    } else {
+      await db.insert(schema.ownProjects).values([
+        { user_id: user.id, name: 'SaaS Dashboard', icon: '📊', description: 'B2B analytics dashboard for SMBs', status: 'active', next_step: 'Build onboarding wizard', last_update: 'Completed auth flow', is_sample: true },
+        { user_id: user.id, name: 'CLI Tool', icon: '⚡', description: 'Developer productivity tool', status: 'active', next_step: 'Add autocomplete', last_update: 'Published v0.2.0', is_sample: true },
+        { user_id: user.id, name: 'Mobile App', icon: '📱', description: 'Fitness tracking app — on hold', status: 'paused', next_step: 'Resume after semester', last_update: 'Paused MVP work', is_sample: true },
+      ]);
+    }
   }
 
   // ── ORGANIZATIONS + COMMUNITY ITEMS ─────────────────────────────────────
+  // Phase 5b: when Community is on the dynamic engine, sample orgs/items go
+  // to pillar_items instead of the legacy tables.
   if (includeOrganizations) {
-    const orgRows = await db
-      .insert(schema.organizations)
-      .values([
-        { user_id: user.id, name: 'Dev Community', slug: 'dev-community', is_sample: true },
-        { user_id: user.id, name: 'Local Startup Hub', slug: 'startup-hub', is_sample: true },
-      ])
-      .returning({ id: schema.organizations.id });
-
-    const [org1, org2] = orgRows.map((r) => r.id);
-
-    if (includeCommunityItems) {
-      const today = new Date().toISOString().slice(0, 10);
-      const inWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const nextWeek = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-      await db.insert(schema.communityItems).values([
-        { user_id: user.id, organization_id: org1, title: 'Present side project at meetup', description: 'Demo the SaaS dashboard at monthly dev meetup', status: 'pending', due_date: nextWeek, is_sample: true },
-        { user_id: user.id, organization_id: org2, title: 'Mentor session with founder', status: 'pending', due_date: inWeek, is_sample: true },
-        { user_id: user.id, organization_id: org1, title: 'Review open source PR', description: 'Review the authentication module PR in the community repo', status: 'done', due_date: today, is_sample: true },
+    if (isCommunityDynamicEngineEnabled()) {
+      const communityPillarId = await ensurePillarForUser(user.id, COMMUNITY_TEMPLATE);
+      const containerStatus = COMMUNITY_TEMPLATE.status_workflow[0].key;
+      const [org1, org2] = await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: communityPillarId, isContainer: true, title: 'Dev Community', status: containerStatus, isSample: true, fields: { slug: 'dev-community' } }),
+        insertPillarItem({ userId: user.id, pillarId: communityPillarId, isContainer: true, title: 'Local Startup Hub', status: containerStatus, isSample: true, fields: { slug: 'startup-hub' } }),
       ]);
+
+      if (includeCommunityItems) {
+        const today = new Date().toISOString().slice(0, 10);
+        const inWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const nextWeek = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+        await Promise.all([
+          insertPillarItem({ userId: user.id, pillarId: communityPillarId, parentItemId: org1, isContainer: false, title: 'Present side project at meetup', description: 'Demo the SaaS dashboard at monthly dev meetup', status: 'pending', dueDate: nextWeek, isSample: true }),
+          insertPillarItem({ userId: user.id, pillarId: communityPillarId, parentItemId: org2, isContainer: false, title: 'Mentor session with founder', status: 'pending', dueDate: inWeek, isSample: true }),
+          insertPillarItem({ userId: user.id, pillarId: communityPillarId, parentItemId: org1, isContainer: false, title: 'Review open source PR', description: 'Review the authentication module PR in the community repo', status: 'done', dueDate: today, isSample: true }),
+        ]);
+      }
+    } else {
+      const orgRows = await db
+        .insert(schema.organizations)
+        .values([
+          { user_id: user.id, name: 'Dev Community', slug: 'dev-community', is_sample: true },
+          { user_id: user.id, name: 'Local Startup Hub', slug: 'startup-hub', is_sample: true },
+        ])
+        .returning({ id: schema.organizations.id });
+
+      const [org1, org2] = orgRows.map((r) => r.id);
+
+      if (includeCommunityItems) {
+        const today = new Date().toISOString().slice(0, 10);
+        const inWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const nextWeek = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+        await db.insert(schema.communityItems).values([
+          { user_id: user.id, organization_id: org1, title: 'Present side project at meetup', description: 'Demo the SaaS dashboard at monthly dev meetup', status: 'pending', due_date: nextWeek, is_sample: true },
+          { user_id: user.id, organization_id: org2, title: 'Mentor session with founder', status: 'pending', due_date: inWeek, is_sample: true },
+          { user_id: user.id, organization_id: org1, title: 'Review open source PR', description: 'Review the authentication module PR in the community repo', status: 'done', due_date: today, is_sample: true },
+        ]);
+      }
     }
   }
 
@@ -228,6 +339,11 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
 export async function removeSampleData(): Promise<void> {
   const user = await requireUser();
 
+  // Legacy tables — always cleaned regardless of current flag state. Sample
+  // data may have been loaded before a pillar's cutover, or carried into
+  // pillar_items by a migration script that mirrored is_sample rows, so
+  // legacy rows can exist even with the flag currently on. See Phase 5b
+  // notes in docs/DYNAMIC_PILLARS.md.
   await db.delete(schema.communityItems).where(and(eq(schema.communityItems.user_id, user.id), eq(schema.communityItems.is_sample, true)));
   await db.delete(schema.organizations).where(and(eq(schema.organizations.user_id, user.id), eq(schema.organizations.is_sample, true)));
   await db.delete(schema.freelanceTasks).where(and(eq(schema.freelanceTasks.user_id, user.id), eq(schema.freelanceTasks.is_sample, true)));
@@ -237,6 +353,11 @@ export async function removeSampleData(): Promise<void> {
   await db.delete(schema.workblocks).where(and(eq(schema.workblocks.user_id, user.id), eq(schema.workblocks.is_sample, true)));
   await db.delete(schema.assignments).where(and(eq(schema.assignments.user_id, user.id), eq(schema.assignments.is_sample, true)));
   await db.delete(schema.subjects).where(and(eq(schema.subjects.user_id, user.id), eq(schema.subjects.is_sample, true)));
+
+  // pillar_items — same unconditional cleanup, scoped to user + is_sample.
+  // Child rows first for FK safety (no cascade from container -> child here).
+  await db.delete(schema.pillarItems).where(and(eq(schema.pillarItems.user_id, user.id), eq(schema.pillarItems.is_sample, true), eq(schema.pillarItems.is_container, false)));
+  await db.delete(schema.pillarItems).where(and(eq(schema.pillarItems.user_id, user.id), eq(schema.pillarItems.is_sample, true), eq(schema.pillarItems.is_container, true)));
 
   logAudit({ userId: user.id, action: 'sample_data_removed' });
   revalidateAll();

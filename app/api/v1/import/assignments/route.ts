@@ -5,6 +5,9 @@ import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
 import { checkLimit } from '@/lib/limits';
+import { isUniDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { ensurePillarForUser, findOrCreateContainerItem, insertPillarItem } from '@/lib/pillar-writes';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,10 +52,18 @@ export async function POST(request: Request) {
 
     const importedIds: string[] = [];
     const errors: Array<{ index: number; error: string }> = [];
-    const subjectCache = new Map<string, string>(); // name -> id
+    const subjectCache = new Map<string, string>(); // `${name}::${semester}` -> id
 
     const limitCheck = await checkLimit(userId, 'assignments');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
+
+    // Phase 5b: when Uni is on the dynamic engine, import goes to
+    // pillar_items — the legacy subjects/assignments tables would otherwise
+    // become invisible to /uni's own UI. Subjects are deduped by
+    // name+semester together, same as the legacy subjectCache behavior
+    // (Community only dedupes by name; Uni needs the extra semester key).
+    const pillarId = isUniDynamicEngineEnabled() ? await ensurePillarForUser(userId, UNI_TEMPLATE) : null;
+    const subjectStatus = UNI_TEMPLATE.status_workflow[0].key;
 
     for (let i = 0; i < parsed.data.assignments.length; i++) {
       if (i >= remaining) {
@@ -64,46 +75,71 @@ export async function POST(request: Request) {
         const semester = a.semester ?? currentSemester();
         const cacheKey = `${a.subject_name}::${semester}`;
 
-        let subjectId = subjectCache.get(cacheKey);
-        if (!subjectId) {
-          const [existing] = await db
-            .select({ id: schema.subjects.id })
-            .from(schema.subjects)
-            .where(
-              and(
-                eq(schema.subjects.user_id, userId),
-                eq(schema.subjects.name, a.subject_name),
-                eq(schema.subjects.semester, semester),
-              ),
-            )
-            .limit(1);
-
-          if (existing) {
-            subjectId = existing.id;
-          } else {
-            const [created] = await db
-              .insert(schema.subjects)
-              .values({ user_id: userId, name: a.subject_name, semester })
-              .returning({ id: schema.subjects.id });
-            subjectId = created!.id;
+        if (pillarId) {
+          let subjectId = subjectCache.get(cacheKey);
+          if (!subjectId) {
+            subjectId = await findOrCreateContainerItem(userId, pillarId, a.subject_name, {
+              status: subjectStatus,
+              fields: { semester, schedule: [], vault_slug: null },
+              matchFields: { semester },
+            });
+            subjectCache.set(cacheKey, subjectId);
           }
-          subjectCache.set(cacheKey, subjectId);
-        }
 
-        const [row] = await db
-          .insert(schema.assignments)
-          .values({
-            user_id: userId,
-            subject_id: subjectId,
+          const id = await insertPillarItem({
+            userId,
+            pillarId,
+            parentItemId: subjectId,
+            isContainer: false,
             title: a.title,
             description: a.description ?? null,
-            due_date: a.due_date ?? null,
             status: a.status,
-            resources: a.resources ?? [],
-          })
-          .returning({ id: schema.assignments.id });
+            dueDate: a.due_date ?? null,
+            fields: { resources: a.resources ?? [] },
+          });
+          importedIds.push(id);
+        } else {
+          let subjectId = subjectCache.get(cacheKey);
+          if (!subjectId) {
+            const [existing] = await db
+              .select({ id: schema.subjects.id })
+              .from(schema.subjects)
+              .where(
+                and(
+                  eq(schema.subjects.user_id, userId),
+                  eq(schema.subjects.name, a.subject_name),
+                  eq(schema.subjects.semester, semester),
+                ),
+              )
+              .limit(1);
 
-        if (row) importedIds.push(row.id);
+            if (existing) {
+              subjectId = existing.id;
+            } else {
+              const [created] = await db
+                .insert(schema.subjects)
+                .values({ user_id: userId, name: a.subject_name, semester })
+                .returning({ id: schema.subjects.id });
+              subjectId = created!.id;
+            }
+            subjectCache.set(cacheKey, subjectId);
+          }
+
+          const [row] = await db
+            .insert(schema.assignments)
+            .values({
+              user_id: userId,
+              subject_id: subjectId,
+              title: a.title,
+              description: a.description ?? null,
+              due_date: a.due_date ?? null,
+              status: a.status,
+              resources: a.resources ?? [],
+            })
+            .returning({ id: schema.assignments.id });
+
+          if (row) importedIds.push(row.id);
+        }
       } catch (err) {
         errors.push({ index: i, error: err instanceof Error ? err.message : 'unknown error' });
       }

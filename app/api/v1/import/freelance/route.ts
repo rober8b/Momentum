@@ -4,6 +4,9 @@ import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
 import { checkLimit } from '@/lib/limits';
+import { isFreelanceDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { FREELANCE_TEMPLATE } from '@/lib/pillar-templates';
+import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +56,13 @@ export async function POST(request: Request) {
     const limitCheck = await checkLimit(userId, 'freelance_clients');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
 
+    // Phase 5b: when Freelance is on the dynamic engine, import goes to
+    // pillar_items — the legacy freelance_clients/tasks tables would
+    // otherwise become invisible to /freelance's own UI. Clients are NOT
+    // deduped by name here, same as the legacy path — every import call
+    // creates a new client even if the name matches an existing one.
+    const pillarId = isFreelanceDynamicEngineEnabled() ? await ensurePillarForUser(userId, FREELANCE_TEMPLATE) : null;
+
     for (let i = 0; i < parsed.data.clients.length; i++) {
       if (i >= remaining) {
         errors.push({ index: i, error: `plan limit reached (${limitCheck.limit} freelance clients)` });
@@ -60,8 +70,43 @@ export async function POST(request: Request) {
       }
       const c = parsed.data.clients[i];
       try {
-        // Insert client + tasks in a transaction
         const result = await db.transaction(async (tx) => {
+          if (pillarId) {
+            const clientId = await insertPillarItem(
+              {
+                userId,
+                pillarId,
+                isContainer: true,
+                title: c.name,
+                description: c.description ?? null,
+                status: c.status,
+                fields: { icon: c.icon ?? null, stack: c.stack ?? null, next_step: c.next_step ?? null, last_update: c.last_update ?? null, links: c.links ?? {} },
+              },
+              tx,
+            );
+
+            if (c.tasks && c.tasks.length > 0) {
+              for (const t of c.tasks) {
+                await insertPillarItem(
+                  {
+                    userId,
+                    pillarId,
+                    parentItemId: clientId,
+                    isContainer: false,
+                    title: t.title,
+                    description: t.description ?? null,
+                    status: t.status,
+                    dueDate: t.due_date ?? null,
+                    fields: { priority: t.priority },
+                  },
+                  tx,
+                );
+              }
+            }
+
+            return clientId;
+          }
+
           const [clientRow] = await tx
             .insert(schema.freelanceClients)
             .values({
