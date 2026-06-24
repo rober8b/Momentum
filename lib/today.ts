@@ -1,7 +1,14 @@
 import 'server-only';
 import { db, schema } from '@/lib/db';
-import { and, eq, inArray, lte, ne, desc, asc, sql } from 'drizzle-orm';
+import { and, eq, inArray, lte, desc, asc, sql } from 'drizzle-orm';
 import { todayKey, inDaysISO, formatFullDate } from '@/lib/date';
+import { rowToPillarItem } from '@/lib/pillars';
+import {
+  isFreelanceDynamicEngineEnabled,
+  isCommunityDynamicEngineEnabled,
+  isUniDynamicEngineEnabled,
+} from '@/lib/pillar-flags';
+import { FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
 import type {
   Subject,
   Assignment,
@@ -13,6 +20,7 @@ import type {
   OwnProject,
   CommunityItem,
   Organization,
+  PillarItem,
 } from '@/lib/types';
 
 export type TodayClass = {
@@ -96,16 +104,104 @@ function rowToBuildItem(r: typeof schema.buildItems.$inferSelect): BuildItem {
 // Priorities sortable as enum: high > med > low
 const PRIORITY_ORDER = sql`case ${schema.workblocks.priority} when 'high' then 0 when 'med' then 1 when 'low' then 2 else 3 end`;
 
+// ----- DYNAMIC PILLAR ENGINE BRIDGE -----
+// Phase 5: Today/search/export must see items created through a cut-over
+// pillar's UI (which write only to pillar_items, never the legacy tables —
+// see app/p/actions.ts). These helpers read pillar_items and map rows back
+// into the exact legacy shapes the rest of this file already produces, so
+// every downstream filter/sort/JSX stays untouched. Deliberately NOT in
+// lib/pillars.ts: that file is imported by components/pillars/GenericList.tsx
+// ('use client'), so adding a db import there would leak server-only code
+// into the client bundle. This file is already db-importing and consumed
+// only by server code (app/page.tsx, app/api/export/route.ts).
+async function getPillarItemsByKey(userId: string, pillarKey: string): Promise<PillarItem[]> {
+  const [pillarRow] = await db
+    .select()
+    .from(schema.pillars)
+    .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, pillarKey)))
+    .limit(1);
+  if (!pillarRow) return [];
+
+  const itemRows = await db
+    .select()
+    .from(schema.pillarItems)
+    .where(and(eq(schema.pillarItems.user_id, userId), eq(schema.pillarItems.pillar_id, pillarRow.id)));
+  return itemRows.map(rowToPillarItem);
+}
+
+function pillarItemToSubject(item: PillarItem): Subject {
+  return {
+    id: item.id,
+    name: item.title,
+    semester: (item.fields.semester as string) ?? '',
+    schedule: Array.isArray(item.fields.schedule) ? (item.fields.schedule as ScheduleSlot[]) : [],
+    active: item.status === 'active',
+    vault_slug: (item.fields.vault_slug as string | null) ?? null,
+    created_at: item.created_at,
+  };
+}
+
+function pillarItemToAssignment(item: PillarItem): Assignment {
+  return {
+    id: item.id,
+    subject_id: item.parent_item_id,
+    title: item.title,
+    description: item.description,
+    due_date: item.due_date,
+    status: item.status as Assignment['status'],
+    resources: (item.fields.resources ?? []) as Assignment['resources'],
+    created_at: item.created_at,
+    completed_at: item.completed_at,
+  };
+}
+
+function pillarItemToFreelanceTask(item: PillarItem): FreelanceTask {
+  return {
+    id: item.id,
+    client_id: item.parent_item_id,
+    title: item.title,
+    description: item.description,
+    status: item.status as FreelanceTask['status'],
+    priority: (item.fields.priority as FreelanceTask['priority']) ?? 'med',
+    due_date: item.due_date,
+    created_at: item.created_at,
+    completed_at: item.completed_at,
+  };
+}
+
+function pillarItemToCommunityItem(item: PillarItem, orgName: string | null): CommunityItem {
+  return {
+    id: item.id,
+    organization_id: item.parent_item_id,
+    organization_name: orgName,
+    title: item.title,
+    description: item.description,
+    status: item.status as CommunityItem['status'],
+    due_date: item.due_date,
+    created_at: item.created_at,
+  };
+}
+
 export async function getTodayData(userId: string, tz: string): Promise<TodayData> {
   const day = todayKey(tz);
 
   // ----- UNIVERSIDAD -----
-  const subjectsRows = await db
-    .select()
-    .from(schema.subjects)
-    .where(and(eq(schema.subjects.user_id, userId), eq(schema.subjects.active, true)));
+  let allSubjects: Subject[];
+  let unfilteredAssignments: Assignment[];
+  if (isUniDynamicEngineEnabled()) {
+    const items = await getPillarItemsByKey(userId, UNI_TEMPLATE.key);
+    allSubjects = items.filter((i) => i.is_container && i.status === 'active').map(pillarItemToSubject);
+    unfilteredAssignments = items.filter((i) => !i.is_container).map(pillarItemToAssignment);
+  } else {
+    const subjectsRows = await db
+      .select()
+      .from(schema.subjects)
+      .where(and(eq(schema.subjects.user_id, userId), eq(schema.subjects.active, true)));
+    allSubjects = subjectsRows.map(rowToSubject);
 
-  const allSubjects = subjectsRows.map(rowToSubject);
+    const assignmentsRows = await db.select().from(schema.assignments).where(eq(schema.assignments.user_id, userId));
+    unfilteredAssignments = assignmentsRows.map(rowToAssignment);
+  }
 
   const classes: TodayClass[] = [];
   for (const s of allSubjects) {
@@ -115,23 +211,15 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
   }
   classes.sort((a, b) => a.slot.start.localeCompare(b.slot.start));
 
-  const assignmentsRows = await db
-    .select()
-    .from(schema.assignments)
-    .where(
-      and(
-        eq(schema.assignments.user_id, userId),
-        ne(schema.assignments.status, 'done'),
-        lte(schema.assignments.due_date, inDaysISO(7, tz)),
-      ),
-    )
-    .orderBy(asc(schema.assignments.due_date));
-
+  const dueLimit = inDaysISO(7, tz);
   const subjectMap = new Map(allSubjects.map((s) => [s.id, s.name]));
-  const assignments = assignmentsRows.map((r) => ({
-    ...rowToAssignment(r),
-    subjectName: r.subject_id ? subjectMap.get(r.subject_id) ?? null : null,
-  }));
+  const assignments = unfilteredAssignments
+    .filter((a) => a.status !== 'done' && a.due_date !== null && a.due_date <= dueLimit)
+    .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
+    .map((a) => ({
+      ...a,
+      subjectName: a.subject_id ? subjectMap.get(a.subject_id) ?? null : null,
+    }));
 
   // ----- TRABAJO -----
   const [activeRows, backlogHighRows] = await Promise.all([
@@ -169,44 +257,65 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
   const buildItems = buildRows.map(rowToBuildItem);
 
   // ----- FREELANCE -----
-  const ftRows = await db
-    .select()
-    .from(schema.freelanceTasks)
-    .where(and(eq(schema.freelanceTasks.user_id, userId), inArray(schema.freelanceTasks.status, ['today', 'in-progress'])));
+  let freelanceTasks: (FreelanceTask & { clientName: string })[];
+  if (isFreelanceDynamicEngineEnabled()) {
+    const items = await getPillarItemsByKey(userId, FREELANCE_TEMPLATE.key);
+    const clientNameMap = new Map(items.filter((i) => i.is_container).map((c) => [c.id, c.title]));
+    freelanceTasks = items
+      .filter((i) => !i.is_container && ['today', 'in-progress'].includes(i.status))
+      .map(pillarItemToFreelanceTask)
+      .map((t) => ({ ...t, clientName: t.client_id ? clientNameMap.get(t.client_id) ?? '' : '' }));
+  } else {
+    const ftRows = await db
+      .select()
+      .from(schema.freelanceTasks)
+      .where(and(eq(schema.freelanceTasks.user_id, userId), inArray(schema.freelanceTasks.status, ['today', 'in-progress'])));
 
-  const clientIds = [...new Set(ftRows.map((r) => r.client_id).filter(Boolean))] as string[];
-  const clientNameMap = new Map<string, string>();
-  if (clientIds.length > 0) {
-    const clientRows = await db
-      .select({ id: schema.freelanceClients.id, name: schema.freelanceClients.name })
-      .from(schema.freelanceClients)
-      .where(inArray(schema.freelanceClients.id, clientIds));
-    for (const c of clientRows) clientNameMap.set(c.id, c.name);
+    const clientIds = [...new Set(ftRows.map((r) => r.client_id).filter(Boolean))] as string[];
+    const clientNameMap = new Map<string, string>();
+    if (clientIds.length > 0) {
+      const clientRows = await db
+        .select({ id: schema.freelanceClients.id, name: schema.freelanceClients.name })
+        .from(schema.freelanceClients)
+        .where(inArray(schema.freelanceClients.id, clientIds));
+      for (const c of clientRows) clientNameMap.set(c.id, c.name);
+    }
+
+    freelanceTasks = ftRows.map((r) => ({
+      ...rowToFreelanceTask(r),
+      clientName: r.client_id ? clientNameMap.get(r.client_id) ?? '' : '',
+    }));
   }
 
-  const freelanceTasks = ftRows.map((r) => ({
-    ...rowToFreelanceTask(r),
-    clientName: r.client_id ? clientNameMap.get(r.client_id) ?? '' : '',
-  }));
-
   // ----- COMUNIDAD -----
-  const communityRows = await db
-    .select({
-      item: schema.communityItems,
-      org_name: schema.organizations.name,
-    })
-    .from(schema.communityItems)
-    .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
-    .where(
-      and(
-        eq(schema.communityItems.user_id, userId),
-        eq(schema.communityItems.status, 'pending'),
-        lte(schema.communityItems.due_date, inDaysISO(3, tz)),
-      ),
-    )
-    .orderBy(asc(schema.communityItems.due_date));
+  let communityItems: CommunityItem[];
+  if (isCommunityDynamicEngineEnabled()) {
+    const items = await getPillarItemsByKey(userId, COMMUNITY_TEMPLATE.key);
+    const orgNameMap = new Map(items.filter((i) => i.is_container).map((o) => [o.id, o.title]));
+    const dueLimit3 = inDaysISO(3, tz);
+    communityItems = items
+      .filter((i) => !i.is_container && i.status === 'pending' && i.due_date !== null && i.due_date <= dueLimit3)
+      .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
+      .map((i) => pillarItemToCommunityItem(i, i.parent_item_id ? orgNameMap.get(i.parent_item_id) ?? null : null));
+  } else {
+    const communityRows = await db
+      .select({
+        item: schema.communityItems,
+        org_name: schema.organizations.name,
+      })
+      .from(schema.communityItems)
+      .leftJoin(schema.organizations, eq(schema.communityItems.organization_id, schema.organizations.id))
+      .where(
+        and(
+          eq(schema.communityItems.user_id, userId),
+          eq(schema.communityItems.status, 'pending'),
+          lte(schema.communityItems.due_date, inDaysISO(3, tz)),
+        ),
+      )
+      .orderBy(asc(schema.communityItems.due_date));
 
-  const communityItems = communityRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
+    communityItems = communityRows.map((r) => rowToCommunityItem(r.item, r.org_name ?? null));
+  }
 
   return {
     classes,
@@ -299,4 +408,7 @@ export {
   rowToOwnProject,
   rowToCommunityItem,
   rowToOrganization,
+  getPillarItemsByKey,
+  pillarItemToSubject,
+  pillarItemToAssignment,
 };

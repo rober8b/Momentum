@@ -1,10 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, gte } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { rowToWorkblock, rowToAssignment, rowToBuildItem, rowToSubject } from '@/lib/today';
+import {
+  rowToWorkblock,
+  rowToAssignment,
+  rowToBuildItem,
+  rowToSubject,
+  getPillarItemsByKey,
+  pillarItemToSubject,
+  pillarItemToAssignment,
+} from '@/lib/today';
 import { buildExportFiles, summaryLog, type ExportPayload } from '@/lib/vault-export';
+import { isUniDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { UNI_TEMPLATE } from '@/lib/pillar-templates';
 import { DEFAULT_USER_SETTINGS } from '@/lib/types';
-import type { Subject, UserSettings } from '@/lib/types';
+import type { Subject, Assignment, UserSettings } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -51,7 +61,7 @@ export async function GET(req: NextRequest) {
   for (const userRow of exportUsers) {
     const settings: UserSettings = { ...DEFAULT_USER_SETTINGS, ...(userRow.settings as Partial<UserSettings>) };
 
-    const [wbRows, assnRows, biRows, subRows] = await Promise.all([
+    const [wbRows, biRows] = await Promise.all([
       db
         .select()
         .from(schema.workblocks)
@@ -64,16 +74,6 @@ export async function GET(req: NextRequest) {
         ),
       db
         .select()
-        .from(schema.assignments)
-        .where(
-          and(
-            eq(schema.assignments.user_id, userRow.id),
-            eq(schema.assignments.status, 'done'),
-            gte(schema.assignments.completed_at, range.startDate),
-          ),
-        ),
-      db
-        .select()
         .from(schema.buildItems)
         .where(
           and(
@@ -82,16 +82,44 @@ export async function GET(req: NextRequest) {
             gte(schema.buildItems.published_at, range.startDate),
           ),
         ),
-      db.select().from(schema.subjects).where(eq(schema.subjects.user_id, userRow.id)),
     ]);
 
-    const subjects: Subject[] = subRows.map(rowToSubject);
+    // Phase 5: Uni's assignments/subjects must come from pillar_items when
+    // cut over — new assignments created through the dynamic UI write only
+    // there, never to the legacy tables. See lib/today.ts's getPillarItemsByKey.
+    let subjects: Subject[];
+    let doneAssignments: Assignment[];
+    if (isUniDynamicEngineEnabled()) {
+      const items = await getPillarItemsByKey(userRow.id, UNI_TEMPLATE.key);
+      subjects = items.filter((i) => i.is_container).map(pillarItemToSubject);
+      doneAssignments = items
+        .filter((i) => !i.is_container)
+        .map(pillarItemToAssignment)
+        .filter((a) => a.status === 'done' && a.completed_at !== null && new Date(a.completed_at) >= range.startDate);
+    } else {
+      const [subRows, assnRows] = await Promise.all([
+        db.select().from(schema.subjects).where(eq(schema.subjects.user_id, userRow.id)),
+        db
+          .select()
+          .from(schema.assignments)
+          .where(
+            and(
+              eq(schema.assignments.user_id, userRow.id),
+              eq(schema.assignments.status, 'done'),
+              gte(schema.assignments.completed_at, range.startDate),
+            ),
+          ),
+      ]);
+      subjects = subRows.map(rowToSubject);
+      doneAssignments = assnRows.map(rowToAssignment);
+    }
+
     const subjectMap = new Map(subjects.map((s) => [s.id, s.vault_slug]));
 
     const workblocks = wbRows.map(rowToWorkblock);
-    const assignments = assnRows.map((r) => ({
-      ...rowToAssignment(r),
-      subjectSlug: r.subject_id ? subjectMap.get(r.subject_id) ?? null : null,
+    const assignments = doneAssignments.map((a) => ({
+      ...a,
+      subjectSlug: a.subject_id ? subjectMap.get(a.subject_id) ?? null : null,
     }));
     const buildItems = biRows.map(rowToBuildItem);
 
