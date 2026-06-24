@@ -18,3 +18,12 @@ export function isFreelanceDynamicEngineEnabled(): boolean {
 export function isCommunityDynamicEngineEnabled(): boolean {
   return process.env.COMMUNITY_DYNAMIC_ENGINE !== 'false';
 }
+
+// Set UNI_DYNAMIC_ENGINE=false to fall back to the legacy
+// subjects/assignments-backed /uni routes instantly. Note: /uni/[subject]/
+// [assignment] (the resources detail page) is NOT gated by this flag — it
+// always reads the legacy tables directly, since the dynamic engine has no
+// child-item detail route yet. See docs/DYNAMIC_PILLARS.md.
+export function isUniDynamicEngineEnabled(): boolean {
+  return process.env.UNI_DYNAMIC_ENGINE !== 'false';
+}

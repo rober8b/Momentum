@@ -280,6 +280,11 @@ export type ChildViewConfig = {
   view_type: PillarViewType;
   status_workflow: PillarStatusStep[];
   cardFields: string[];
+  // 'list' childViews only — e.g. Uni's assignments sorted by due_date
+  // within a subject. Mirrors PillarConfig.sortField but scoped to the
+  // child level, since a hierarchical pillar's container and child items
+  // can have very different natural sort orders.
+  sortField?: string;
 };
 
 // View-type-specific settings. Shape is informal (not DB-enforced) — see

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { GenericKanban } from '@/components/pillars/GenericKanban';
+import { GenericList } from '@/components/pillars/GenericList';
 import { PillarItemForm } from '@/components/pillars/PillarItemForm';
 import { badgeVariant } from '@/components/pillars/pillar-render-utils';
 import { getChildViewConfig } from '@/lib/pillars';
@@ -49,7 +50,10 @@ export function PillarContainerPageContent({
       {childView?.view_type === 'kanban' && (
         <GenericKanban items={children} workflow={childView.status_workflow} cardFields={childView.cardFields} />
       )}
-      {(!childView || childView.view_type !== 'kanban') && (
+      {childView?.view_type === 'list' && (
+        <GenericList pillar={pillar} items={children} sortField={childView.sortField} />
+      )}
+      {(!childView || (childView.view_type !== 'kanban' && childView.view_type !== 'list')) && (
         <p className="text-sm text-muted-foreground">este pilar no tiene un childView configurado todavía.</p>
       )}
     </div>

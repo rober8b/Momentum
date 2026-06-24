@@ -106,8 +106,49 @@ export const COMMUNITY_TEMPLATE: PillarTemplate = {
   },
 };
 
+// Uni is the first 'custom' view_type pillar: subjects are containers
+// (hierarchy-required, like Freelance — every assignment belongs to a
+// subject in practice, though the legacy schema's nullable subject_id is
+// still handled defensively by the migration, same skip-with-warning
+// treatment migrate-freelance.ts gives an orphaned task). What makes it
+// "custom" is the weekly schedule: each subject's schedule lives in
+// fields.schedule on its container item, rendered by a registered
+// 'uni-schedule' renderer (see components/pillars/custom-renderers.tsx) —
+// the escape hatch docs/DYNAMIC_PILLARS.md always intended for exotic
+// views, not something the generic grid/list/kanban engine should try to
+// express. Assignments (children) use the generic 'list' view, sorted by
+// due_date via config.childView.sortField.
+export const UNI_TEMPLATE: PillarTemplate = {
+  key: 'uni',
+  name: 'Uni',
+  icon: 'GraduationCap',
+  description: 'Materias y TPs.',
+  view_type: 'custom',
+  // Mirrors subjects.active (boolean) as a two-state workflow so the
+  // mapping is lossless — the legacy column doesn't have a UI to toggle it
+  // today, but the migration round-trips it either way.
+  status_workflow: [
+    { key: 'active', label: 'activa', color: 'accent' },
+    { key: 'inactive', label: 'inactiva', color: 'muted', is_terminal: true },
+  ],
+  config: {
+    renderer: 'uni-schedule',
+    childView: {
+      view_type: 'list',
+      status_workflow: [
+        { key: 'todo', label: 'todo', color: 'muted' },
+        { key: 'in-progress', label: 'en progreso', color: 'warning' },
+        { key: 'done', label: 'hecho', color: 'success', is_terminal: true },
+      ],
+      cardFields: ['description', 'due_date'],
+      sortField: 'due_date',
+    },
+  },
+};
+
 export const PILLAR_TEMPLATES: Record<string, PillarTemplate> = {
   projects: PROJECTS_TEMPLATE,
   freelance: FREELANCE_TEMPLATE,
   community: COMMUNITY_TEMPLATE,
+  uni: UNI_TEMPLATE,
 };

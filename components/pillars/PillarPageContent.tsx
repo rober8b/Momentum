@@ -1,6 +1,7 @@
 import { GenericGrid } from '@/components/pillars/GenericGrid';
 import { GenericList } from '@/components/pillars/GenericList';
 import { PillarItemForm } from '@/components/pillars/PillarItemForm';
+import { CUSTOM_RENDERERS } from '@/components/pillars/custom-renderers';
 import type { Pillar, PillarItem } from '@/lib/types';
 
 // Shared body for any page that renders one pillar's items by its
@@ -60,7 +61,17 @@ export function PillarPageContent({
 
       {pillar.view_type === 'grid' && <GenericGrid pillar={pillar} items={items} basePath={basePath} />}
       {pillar.view_type === 'list' && <GenericList pillar={pillar} items={items} />}
-      {pillar.view_type !== 'grid' && pillar.view_type !== 'list' && (
+      {pillar.view_type === 'custom' && (() => {
+        const Renderer = CUSTOM_RENDERERS[pillar.config.renderer as string];
+        return Renderer ? (
+          <Renderer pillar={pillar} items={items} basePath={basePath} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            renderer &quot;{String(pillar.config.renderer)}&quot; no está registrado.
+          </p>
+        );
+      })()}
+      {pillar.view_type !== 'grid' && pillar.view_type !== 'list' && pillar.view_type !== 'custom' && (
         <p className="text-sm text-muted-foreground">
           view_type &quot;{pillar.view_type}&quot; todavía no tiene un renderer genérico.
         </p>

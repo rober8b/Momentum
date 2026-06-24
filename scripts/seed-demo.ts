@@ -56,7 +56,7 @@ async function run() {
       ${passwordHash},
       'admin',
       true,
-      ${JSON.stringify({
+      ${sql.json({
         timezone: 'America/New_York',
         language: 'en',
         theme: 'dark',
@@ -74,14 +74,14 @@ async function run() {
 
   await sql`
     INSERT INTO subjects (id, user_id, name, semester, schedule, active, vault_slug) VALUES
-    (${s1}, ${userId}, 'Product Management', '2026-1', ${JSON.stringify([
+    (${s1}, ${userId}, 'Product Management', '2026-1', ${sql.json([
       { day: 'mon', start: '09:00', end: '11:00', room: 'Room 201' },
       { day: 'wed', start: '09:00', end: '11:00', room: 'Room 201' },
     ])}, true, 'product-management'),
-    (${s2}, ${userId}, 'Data Analytics', '2026-1', ${JSON.stringify([
+    (${s2}, ${userId}, 'Data Analytics', '2026-1', ${sql.json([
       { day: 'tue', start: '14:00', end: '17:00', room: 'Lab A' },
     ])}, true, 'data-analytics'),
-    (${s3}, ${userId}, 'Business Strategy', '2026-1', ${JSON.stringify([
+    (${s3}, ${userId}, 'Business Strategy', '2026-1', ${sql.json([
       { day: 'thu', start: '18:00', end: '21:00', room: 'Auditorium' },
       { day: 'fri', start: '10:00', end: '12:00', room: 'Room 105' },
     ])}, true, 'business-strategy')

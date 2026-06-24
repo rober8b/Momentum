@@ -141,7 +141,20 @@ function GroupSection({
 // the FULL item set for the pillar (containers + children + ungrouped
 // top-level items), not just top-level items, since grouping happens here
 // rather than via a separate drill-down page.
-export function GenericList({ pillar, items }: { pillar: Pillar; items: PillarItem[] }) {
+export function GenericList({
+  pillar,
+  items,
+  sortField,
+}: {
+  pillar: Pillar;
+  items: PillarItem[];
+  // Overrides pillar.config.sortField — used when rendering a hierarchical
+  // pillar's CHILD items (e.g. Uni's assignments under a subject), where
+  // the natural sort order comes from config.childView.sortField instead.
+  sortField?: string;
+}) {
+  const effectiveSortField = sortField ?? (pillar.config.sortField as string | undefined);
+
   if (items.length === 0) {
     return <EmptyState icon={List} title="sin items todavía" description="agregá el primero con el formulario de arriba." />;
   }
@@ -164,10 +177,10 @@ export function GenericList({ pillar, items }: { pillar: Pillar; items: PillarIt
     return (
       <div className="space-y-4">
         {containers.map((c) => (
-          <GroupSection key={c.id} pillar={pillar} container={c} title={c.title} items={sortByField(byParent.get(c.id) ?? [], pillar.config.sortField as string | undefined)} />
+          <GroupSection key={c.id} pillar={pillar} container={c} title={c.title} items={sortByField(byParent.get(c.id) ?? [], effectiveSortField)} />
         ))}
         {ungrouped.length > 0 && (
-          <GroupSection pillar={pillar} container={null} title="sin organización" items={sortByField(ungrouped, pillar.config.sortField as string | undefined)} />
+          <GroupSection pillar={pillar} container={null} title="sin organización" items={sortByField(ungrouped, effectiveSortField)} />
         )}
       </div>
     );
@@ -175,7 +188,7 @@ export function GenericList({ pillar, items }: { pillar: Pillar; items: PillarIt
 
   return (
     <div className="space-y-2">
-      {sortByField(items, pillar.config.sortField as string | undefined).map((item) => (
+      {sortByField(items, effectiveSortField).map((item) => (
         <ListRow key={item.id} item={item} pillar={pillar} />
       ))}
     </div>
