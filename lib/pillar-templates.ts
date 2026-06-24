@@ -72,7 +72,42 @@ export const FREELANCE_TEMPLATE: PillarTemplate = {
   },
 };
 
+// Community is the first OPTIONAL-grouping pillar: organizations are
+// containers, community items are children — but unlike Freelance, a child
+// item may have NO parent (organization_id was nullable on the legacy
+// table). Ungrouped items are first-class, not an error case. The pillar's
+// own status_workflow is a trivial single state for containers (an
+// organization has no real status of its own); the actual workflow
+// (pending/done/cancelled) lives on config.childView and applies to every
+// non-container item, grouped or not — see lib/pillars.ts's
+// statusWorkflowFor, which picks by is_container rather than by whether a
+// parent is set, specifically so ungrouped items still get the right
+// workflow. config.groupByField/sortField select the 'list' renderer's
+// optional-grouping mode. See docs/DYNAMIC_PILLARS.md.
+export const COMMUNITY_TEMPLATE: PillarTemplate = {
+  key: 'community',
+  name: 'Comunidad',
+  icon: 'Users',
+  description: 'Organizaciones y compromisos de comunidad — la organización es opcional.',
+  view_type: 'list',
+  status_workflow: [{ key: 'active', label: 'activa', color: 'muted' }],
+  config: {
+    groupByField: 'parent_item_id',
+    sortField: 'due_date',
+    childView: {
+      view_type: 'list',
+      status_workflow: [
+        { key: 'pending', label: 'pendiente', color: 'accent' },
+        { key: 'done', label: 'hecho', color: 'success', is_terminal: true },
+        { key: 'cancelled', label: 'cancelado', color: 'muted', is_terminal: true },
+      ],
+      cardFields: ['description', 'due_date'],
+    },
+  },
+};
+
 export const PILLAR_TEMPLATES: Record<string, PillarTemplate> = {
   projects: PROJECTS_TEMPLATE,
   freelance: FREELANCE_TEMPLATE,
+  community: COMMUNITY_TEMPLATE,
 };

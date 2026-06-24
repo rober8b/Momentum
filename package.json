@@ -36,7 +36,8 @@
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:down:volume": "docker compose -f docker-compose.dev.yml down -v",
     "migrate:projects:local": "npx tsx --env-file=.env.local scripts/migrate-projects.ts",
-    "migrate:freelance:local": "npx tsx --env-file=.env.local scripts/migrate-freelance.ts"
+    "migrate:freelance:local": "npx tsx --env-file=.env.local scripts/migrate-freelance.ts",
+    "migrate:community:local": "npx tsx --env-file=.env.local scripts/migrate-community.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

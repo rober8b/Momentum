@@ -21,16 +21,19 @@ async function getOwnedPillar(userId: string, pillarId: string): Promise<PillarR
 
 // Hierarchical pillars (Freelance: client -> task) keep two status
 // workflows: the pillar's own (for container items, e.g. clients) and
-// config.childView's (for items with a parent, e.g. tasks). See
+// config.childView's (for items with a parent, e.g. tasks). Picked by the
+// item's own is_container flag, not by whether it has a parent — those
+// diverge for Community's optional grouping, where an ungrouped item
+// (no parent, not a container) still needs the childView workflow. See
 // docs/DYNAMIC_PILLARS.md locked decision #3 and lib/pillars.ts's
 // statusWorkflowFor, which this mirrors for the raw DB row shape used here.
-function statusWorkflowFor(pillar: PillarRow, hasParent: boolean) {
-  if (hasParent && pillar.config.childView) return pillar.config.childView.status_workflow;
+function statusWorkflowFor(pillar: PillarRow, isContainer: boolean) {
+  if (!isContainer && pillar.config.childView) return pillar.config.childView.status_workflow;
   return pillar.status_workflow;
 }
 
-function isValidStatus(pillar: PillarRow, status: string, hasParent: boolean): boolean {
-  return statusWorkflowFor(pillar, hasParent).some((s) => s.key === status);
+function isValidStatus(pillar: PillarRow, status: string, isContainer: boolean): boolean {
+  return statusWorkflowFor(pillar, isContainer).some((s) => s.key === status);
 }
 
 // Pillars that have a legacy, pre-dynamic-engine route still live at a fixed
@@ -43,6 +46,7 @@ function isValidStatus(pillar: PillarRow, status: string, hasParent: boolean): b
 const LEGACY_PILLAR_ROUTES: Record<string, string> = {
   projects: '/projects',
   freelance: '/freelance',
+  community: '/community',
 };
 
 function revalidatePillarRoutes(key: string, parentItemId?: string | null): void {
@@ -113,7 +117,7 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
   const parsed = createItemSchema.parse(input);
   const pillar = await getOwnedPillar(user.id, parsed.pillarId);
   if (!pillar) return { ok: false, error: 'pilar no encontrado' };
-  if (!isValidStatus(pillar, parsed.status, Boolean(parsed.parent_item_id))) {
+  if (!isValidStatus(pillar, parsed.status, parsed.is_container)) {
     return { ok: false, error: `estado inválido para este pilar: "${parsed.status}"` };
   }
 
@@ -151,7 +155,12 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
 export async function updatePillarItemStatus(itemId: string, status: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
   const [item] = await db
-    .select({ id: schema.pillarItems.id, pillar_id: schema.pillarItems.pillar_id, parent_item_id: schema.pillarItems.parent_item_id })
+    .select({
+      id: schema.pillarItems.id,
+      pillar_id: schema.pillarItems.pillar_id,
+      parent_item_id: schema.pillarItems.parent_item_id,
+      is_container: schema.pillarItems.is_container,
+    })
     .from(schema.pillarItems)
     .where(and(eq(schema.pillarItems.id, itemId), eq(schema.pillarItems.user_id, user.id)))
     .limit(1);
@@ -159,11 +168,10 @@ export async function updatePillarItemStatus(itemId: string, status: string): Pr
 
   const pillar = await getOwnedPillar(user.id, item.pillar_id);
   if (!pillar) return { ok: false, error: 'pilar no encontrado' };
-  const hasParent = Boolean(item.parent_item_id);
-  if (!isValidStatus(pillar, status, hasParent)) {
+  if (!isValidStatus(pillar, status, item.is_container)) {
     return { ok: false, error: `estado inválido para este pilar: "${status}"` };
   }
-  const isTerminal = statusWorkflowFor(pillar, hasParent).find((s) => s.key === status)?.is_terminal ?? false;
+  const isTerminal = statusWorkflowFor(pillar, item.is_container).find((s) => s.key === status)?.is_terminal ?? false;
 
   await db
     .update(schema.pillarItems)

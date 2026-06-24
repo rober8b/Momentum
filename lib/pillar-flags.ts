@@ -12,3 +12,9 @@ export function isProjectsDynamicEngineEnabled(): boolean {
 export function isFreelanceDynamicEngineEnabled(): boolean {
   return process.env.FREELANCE_DYNAMIC_ENGINE !== 'false';
 }
+
+// Set COMMUNITY_DYNAMIC_ENGINE=false to fall back to the legacy
+// organizations/community_items-backed /community route instantly.
+export function isCommunityDynamicEngineEnabled(): boolean {
+  return process.env.COMMUNITY_DYNAMIC_ENGINE !== 'false';
+}

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import { Users } from 'lucide-react';
+import { Users, Layers } from 'lucide-react';
 import { CommitmentRow } from '@/components/community/CommitmentRow';
 import { CommunityForm } from '@/components/community/CommunityForm';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -9,6 +9,11 @@ import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { t } from '@/lib/strings';
 import { rowToCommunityItem, rowToOrganization } from '@/lib/today';
+import { isCommunityDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { rowToPillar, rowToPillarItem } from '@/lib/pillars';
+import { PillarPageContent } from '@/components/pillars/PillarPageContent';
+import { InstantiateTemplateButton } from '@/components/pillars/InstantiateTemplateButton';
+import { COMMUNITY_TEMPLATE } from '@/lib/pillar-templates';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +26,15 @@ export default async function CommunityPage({
   searchParams: Promise<{ donePage?: string; cancPage?: string }>;
 }) {
   const user = await requireUser();
+
+  // Rollback flag — see docs/DYNAMIC_PILLARS.md and lib/pillar-flags.ts.
+  // Set COMMUNITY_DYNAMIC_ENGINE=false to fall back to the path below
+  // instantly. organizations/community_items are never touched by the
+  // dynamic path, so flipping this back and forth is always safe.
+  if (isCommunityDynamicEngineEnabled()) {
+    return <DynamicCommunityPage userId={user.id} />;
+  }
+
   const { donePage: donePageParam, cancPage: cancPageParam } = await searchParams;
   const donePage = Math.max(1, Number.parseInt(donePageParam ?? '1', 10) || 1);
   const cancPage = Math.max(1, Number.parseInt(cancPageParam ?? '1', 10) || 1);
@@ -175,4 +189,46 @@ export default async function CommunityPage({
       )}
     </div>
   );
+}
+
+// Dynamic-engine path: reads from pillars/pillar_items (organizations as
+// OPTIONAL containers, community items as their children — or as
+// first-class ungrouped items when they have no organization) instead of
+// organizations/community_items. Unlike Freelance's GenericGrid, the
+// generic 'list' renderer (GenericList) needs the FULL item set, not just
+// top-level items, since grouping happens inline rather than via a
+// drill-down page. See docs/DYNAMIC_PILLARS.md.
+async function DynamicCommunityPage({ userId }: { userId: string }) {
+  const [pillarRow] = await db
+    .select()
+    .from(schema.pillars)
+    .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, COMMUNITY_TEMPLATE.key)))
+    .limit(1);
+
+  if (!pillarRow) {
+    return (
+      <div className="px-4 lg:px-8 py-6 lg:py-8 mx-auto max-w-3xl">
+        <div className="mb-6 lg:mb-8">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">comunidad</p>
+          <h2 className="text-2xl lg:text-3xl font-semibold mt-1">compromisos</h2>
+        </div>
+        <EmptyState
+          icon={Layers}
+          title="este pilar todavía no está activado"
+          description="instanciá el template de comunidad para empezar a usar el motor dinámico."
+          action={<InstantiateTemplateButton template={COMMUNITY_TEMPLATE} />}
+        />
+      </div>
+    );
+  }
+
+  const pillar = rowToPillar(pillarRow);
+  const itemRows = await db
+    .select()
+    .from(schema.pillarItems)
+    .where(and(eq(schema.pillarItems.user_id, userId), eq(schema.pillarItems.pillar_id, pillar.id)))
+    .orderBy(schema.pillarItems.position, schema.pillarItems.created_at);
+  const items = itemRows.map(rowToPillarItem);
+
+  return <PillarPageContent pillar={pillar} items={items} eyebrow="comunidad" basePath="/community" itemLabel="nuevo compromiso" />;
 }

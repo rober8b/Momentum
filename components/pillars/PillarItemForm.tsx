@@ -12,6 +12,7 @@ import type { Pillar, PillarItem, PillarStatusStep } from '@/lib/types';
 export function PillarItemForm({
   pillar,
   parentItem,
+  containers,
   statusWorkflow,
   isContainer = false,
   label = 'nuevo item',
@@ -20,6 +21,11 @@ export function PillarItemForm({
   // When set, the created item becomes a child of this container (e.g. a
   // task under a Freelance client). See docs/DYNAMIC_PILLARS.md.
   parentItem?: PillarItem;
+  // Optional-grouping pillars (e.g. Community): a list of containers to pick
+  // an optional parent from, instead of a fixed parentItem. Mutually
+  // exclusive with parentItem — when set, renders a "sin organización" +
+  // per-container <select>.
+  containers?: PillarItem[];
   // Status options for the new item. Defaults to the pillar's own
   // status_workflow; hierarchical pillars pass their child workflow
   // (pillar.config.childView.status_workflow) when creating a child.
@@ -32,6 +38,8 @@ export function PillarItemForm({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [parentId, setParentId] = useState('');
   const [status, setStatus] = useState(workflow[0]?.key ?? '');
   const [isPending, startTransition] = useTransition();
   const toast = useToast();
@@ -44,8 +52,9 @@ export function PillarItemForm({
         pillarId: pillar.id,
         title: title.trim(),
         description: description.trim() || null,
+        due_date: dueDate || null,
         status,
-        parent_item_id: parentItem?.id ?? null,
+        parent_item_id: parentItem?.id ?? (containers ? parentId || null : null),
         is_container: isContainer,
         fields: {},
       });
@@ -55,6 +64,8 @@ export function PillarItemForm({
       }
       setTitle('');
       setDescription('');
+      setDueDate('');
+      setParentId('');
       setOpen(false);
     });
   }
@@ -92,17 +103,39 @@ export function PillarItemForm({
               'focus:outline-none focus:border-accent placeholder:text-muted-foreground',
             )}
           />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
+          {containers && (
+            <select
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              className="w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
+            >
+              <option value="">sin organización</option>
+              {containers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
             className="w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
-          >
-            {workflow.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          />
+          {workflow.length > 1 && (
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full rounded-sm border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
+            >
+              {workflow.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center justify-end gap-2">
             <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
               cancelar

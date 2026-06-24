@@ -50,8 +50,14 @@ export function getChildViewConfig(pillar: Pillar): ChildViewConfig | null {
   return pillar.config.childView ?? null;
 }
 
-export function statusWorkflowFor(pillar: Pillar, hasParent: boolean): PillarStatusStep[] {
-  if (hasParent) {
+// Picked by the item's OWN is_container flag, not by whether it has a
+// parent — those two are the same thing for Freelance (a task always has a
+// client) but diverge for Community's optional grouping, where a
+// non-container item with no parent (ungrouped) still needs the childView
+// workflow, not the pillar's container-only one. See COMMUNITY_TEMPLATE in
+// lib/pillar-templates.ts.
+export function statusWorkflowFor(pillar: Pillar, isContainer: boolean): PillarStatusStep[] {
+  if (!isContainer) {
     const childView = getChildViewConfig(pillar);
     if (childView) return childView.status_workflow;
   }

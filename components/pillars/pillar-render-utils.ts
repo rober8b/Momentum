@@ -19,6 +19,7 @@ export function readCardField(item: PillarItem, key: string): string | null {
     return typeof value === 'string' && value ? value : null;
   }
   if (key === 'description') return item.description;
+  if (key === 'due_date') return item.due_date ? `vence: ${item.due_date}` : null;
   if (key === 'status') return null; // status is rendered as the badge, not as text
   return null;
 }

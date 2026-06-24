@@ -289,6 +289,12 @@ export type ChildViewConfig = {
 export type PillarConfig = Record<string, unknown> & {
   cardFields?: string[];
   childView?: ChildViewConfig;
+  // 'list' view type only — see docs/DYNAMIC_PILLARS.md "config shape per
+  // view type". groupByField: 'parent_item_id' covers Community-style
+  // OPTIONAL grouping: items with a parent render nested under it, items
+  // without one render as first-class ungrouped items in the same list.
+  groupByField?: string;
+  sortField?: string;
 };
 
 export type Pillar = {
