@@ -498,7 +498,27 @@ All import endpoints process items **one by one**, capturing per-item errors wit
 
 ## Rate limiting
 
-TODO: not implemented in v1. Planned for a future release using an in-memory sliding window or Redis.
+Los 6 endpoints `/api/v1/import/*` tienen rate limiting por token (sliding window sobre la tabla `api_rate_limit_hits`).
+
+**Perfiles (un solo lugar para ajustar: `lib/rate-limits.ts` → `API_IMPORT_RATE_LIMIT`):**
+
+| Modo | Ventana | Máx requests |
+|------|---------|--------------|
+| `hosted` | 1 min | 10 |
+| `self_hosted` | 1 min | 60 |
+
+El presupuesto es **compartido entre los 6 endpoints** por token — no es por endpoint.
+
+**Response 429:**
+```json
+{
+  "error": "Rate limit exceeded. Try again in 42 seconds.",
+  "code": "rate_limited",
+  "retry_after": 42
+}
+```
+
+Para agregar rate limiting a un endpoint nuevo: llamar `enforceApiRateLimit(tokenId, '<nombre-ruta>')` desde `lib/api-rate-limit.ts` justo después de `requireApiToken(...)`. El `catch` existente ya maneja el 429.
 
 ---
 
