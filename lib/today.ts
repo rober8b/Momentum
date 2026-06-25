@@ -169,6 +169,24 @@ function pillarItemToFreelanceTask(item: PillarItem): FreelanceTask {
   };
 }
 
+function pillarItemToBuildItem(item: PillarItem): BuildItem {
+  return {
+    id: item.id,
+    type: (item.fields.type as BuildItem['type']) ?? 'project',
+    title: item.title,
+    draft: (item.fields.draft as string | null) ?? null,
+    hook: (item.fields.hook as string | null) ?? null,
+    platforms: Array.isArray(item.fields.platforms) ? (item.fields.platforms as string[]) : ['x', 'linkedin'],
+    status: item.status as BuildItem['status'],
+    scheduled_for: (item.fields.scheduled_for as string | null) ?? null,
+    published_at: item.completed_at,
+    links: (item.fields.links as Record<string, string>) ?? {},
+    metrics: (item.fields.metrics as Record<string, number>) ?? {},
+    related_project: (item.fields.related_project as string | null) ?? null,
+    created_at: item.created_at,
+  };
+}
+
 function pillarItemToCommunityItem(item: PillarItem, orgName: string | null): CommunityItem {
   return {
     id: item.id,
@@ -411,4 +429,5 @@ export {
   getPillarItemsByKey,
   pillarItemToSubject,
   pillarItemToAssignment,
+  pillarItemToBuildItem,
 };

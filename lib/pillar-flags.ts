@@ -27,3 +27,9 @@ export function isCommunityDynamicEngineEnabled(): boolean {
 export function isUniDynamicEngineEnabled(): boolean {
   return process.env.UNI_DYNAMIC_ENGINE !== 'false';
 }
+
+// Set BUILD_DYNAMIC_ENGINE=false to fall back to the legacy
+// build_items-backed /build route instantly.
+export function isBuildDynamicEngineEnabled(): boolean {
+  return process.env.BUILD_DYNAMIC_ENGINE !== 'false';
+}

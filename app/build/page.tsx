@@ -11,12 +11,73 @@ import { Pagination } from '@/components/ui/Pagination';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { t } from '@/lib/strings';
-import { rowToBuildItem } from '@/lib/today';
+import { rowToBuildItem, pillarItemToBuildItem } from '@/lib/today';
+import { rowToPillarItem } from '@/lib/pillars';
+import { isBuildDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import type { BuildItem } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const PUB_PAGE_SIZE = 20;
 const DISC_PAGE_SIZE = 20;
+
+// Phase 6a: published/discarded must stay paginated at the SQL level (the
+// project's "lo histórico se pagina" convention) even on the dynamic-engine
+// path — no Generic* component supports pagination, so this queries
+// pillar_items directly with the same count()+limit()+offset() shape the
+// legacy query already used, just swapping the table and adding the pillar
+// filter. The active bucket (idea/draft/scheduled) stays unfiltered, same
+// reasoning Uni/Freelance/Community already rely on (bounded by nature).
+async function fetchBuildItemsDynamic(userId: string, pubPage: number, discPage: number) {
+  const [pillarRow] = await db
+    .select({ id: schema.pillars.id })
+    .from(schema.pillars)
+    .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, BUILD_TEMPLATE.key)))
+    .limit(1);
+
+  if (!pillarRow) {
+    return { activeItems: [] as BuildItem[], published: [] as BuildItem[], pubCount: 0, discarded: [] as BuildItem[], discCount: 0 };
+  }
+
+  const [activeRows, pubRows, [{ count: pubCount }], discRows, [{ count: discCount }]] = await Promise.all([
+    db
+      .select()
+      .from(schema.pillarItems)
+      .where(and(eq(schema.pillarItems.pillar_id, pillarRow.id), inArray(schema.pillarItems.status, ['idea', 'draft', 'scheduled'])))
+      .orderBy(desc(schema.pillarItems.created_at)),
+    db
+      .select()
+      .from(schema.pillarItems)
+      .where(and(eq(schema.pillarItems.pillar_id, pillarRow.id), eq(schema.pillarItems.status, 'published')))
+      .orderBy(desc(schema.pillarItems.created_at))
+      .limit(PUB_PAGE_SIZE)
+      .offset((pubPage - 1) * PUB_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.pillarItems)
+      .where(and(eq(schema.pillarItems.pillar_id, pillarRow.id), eq(schema.pillarItems.status, 'published'))),
+    db
+      .select()
+      .from(schema.pillarItems)
+      .where(and(eq(schema.pillarItems.pillar_id, pillarRow.id), eq(schema.pillarItems.status, 'discarded')))
+      .orderBy(desc(schema.pillarItems.created_at))
+      .limit(DISC_PAGE_SIZE)
+      .offset((discPage - 1) * DISC_PAGE_SIZE),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.pillarItems)
+      .where(and(eq(schema.pillarItems.pillar_id, pillarRow.id), eq(schema.pillarItems.status, 'discarded'))),
+  ]);
+
+  return {
+    activeItems: activeRows.map(rowToPillarItem).map(pillarItemToBuildItem),
+    published: pubRows.map(rowToPillarItem).map(pillarItemToBuildItem),
+    pubCount,
+    discarded: discRows.map(rowToPillarItem).map(pillarItemToBuildItem),
+    discCount,
+  };
+}
 
 export default async function BuildPage({
   searchParams,
@@ -28,39 +89,56 @@ export default async function BuildPage({
   const pubPage = Math.max(1, Number.parseInt(pubPageParam ?? '1', 10) || 1);
   const discPage = Math.max(1, Number.parseInt(discPageParam ?? '1', 10) || 1);
 
-  const [activeRows, pubRows, [{ count: pubCount }], discRows, [{ count: discCount }]] = await Promise.all([
-    db
-      .select()
-      .from(schema.buildItems)
-      .where(and(eq(schema.buildItems.user_id, user.id), inArray(schema.buildItems.status, ['idea', 'draft', 'scheduled'])))
-      .orderBy(desc(schema.buildItems.created_at)),
-    db
-      .select()
-      .from(schema.buildItems)
-      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published')))
-      .orderBy(desc(schema.buildItems.created_at))
-      .limit(PUB_PAGE_SIZE)
-      .offset((pubPage - 1) * PUB_PAGE_SIZE),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.buildItems)
-      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published'))),
-    db
-      .select()
-      .from(schema.buildItems)
-      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded')))
-      .orderBy(desc(schema.buildItems.created_at))
-      .limit(DISC_PAGE_SIZE)
-      .offset((discPage - 1) * DISC_PAGE_SIZE),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.buildItems)
-      .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded'))),
-  ]);
+  let activeItems: BuildItem[];
+  let published: BuildItem[];
+  let pubCount: number;
+  let discarded: BuildItem[];
+  let discCount: number;
 
-  const activeItems = activeRows.map(rowToBuildItem);
-  const published = pubRows.map(rowToBuildItem);
-  const discarded = discRows.map(rowToBuildItem);
+  if (isBuildDynamicEngineEnabled()) {
+    const result = await fetchBuildItemsDynamic(user.id, pubPage, discPage);
+    activeItems = result.activeItems;
+    published = result.published;
+    pubCount = result.pubCount;
+    discarded = result.discarded;
+    discCount = result.discCount;
+  } else {
+    const [activeRows, pubRows, [{ count: pubCountRow }], discRows, [{ count: discCountRow }]] = await Promise.all([
+      db
+        .select()
+        .from(schema.buildItems)
+        .where(and(eq(schema.buildItems.user_id, user.id), inArray(schema.buildItems.status, ['idea', 'draft', 'scheduled'])))
+        .orderBy(desc(schema.buildItems.created_at)),
+      db
+        .select()
+        .from(schema.buildItems)
+        .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published')))
+        .orderBy(desc(schema.buildItems.created_at))
+        .limit(PUB_PAGE_SIZE)
+        .offset((pubPage - 1) * PUB_PAGE_SIZE),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.buildItems)
+        .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'published'))),
+      db
+        .select()
+        .from(schema.buildItems)
+        .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded')))
+        .orderBy(desc(schema.buildItems.created_at))
+        .limit(DISC_PAGE_SIZE)
+        .offset((discPage - 1) * DISC_PAGE_SIZE),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.buildItems)
+        .where(and(eq(schema.buildItems.user_id, user.id), eq(schema.buildItems.status, 'discarded'))),
+    ]);
+    activeItems = activeRows.map(rowToBuildItem);
+    published = pubRows.map(rowToBuildItem);
+    pubCount = pubCountRow;
+    discarded = discRows.map(rowToBuildItem);
+    discCount = discCountRow;
+  }
+
   const ideas = activeItems.filter((i) => i.status === 'idea');
   const drafts = activeItems.filter((i) => i.status === 'draft');
   const scheduled = activeItems.filter((i) => i.status === 'scheduled');

@@ -6,7 +6,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { BuildEditor } from '@/components/build/BuildEditor';
 import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
-import { rowToBuildItem } from '@/lib/today';
+import { rowToBuildItem, pillarItemToBuildItem } from '@/lib/today';
+import { rowToPillarItem } from '@/lib/pillars';
+import { isBuildDynamicEngineEnabled } from '@/lib/pillar-flags';
 import type { BuildItem } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -20,13 +22,19 @@ export default async function BuildNewPage({ searchParams }: { searchParams: Sea
   let existing: BuildItem | null = null;
   if (edit || from) {
     const id = (edit ?? from)!;
-    const rows = await db
-      .select()
-      .from(schema.buildItems)
-      .where(eq(schema.buildItems.id, id))
-      .limit(1);
-    if (rows.length) existing = rowToBuildItem(rows[0]);
-    else if (edit) notFound();
+    if (isBuildDynamicEngineEnabled()) {
+      const rows = await db.select().from(schema.pillarItems).where(eq(schema.pillarItems.id, id)).limit(1);
+      if (rows.length) existing = pillarItemToBuildItem(rowToPillarItem(rows[0]));
+      else if (edit) notFound();
+    } else {
+      const rows = await db
+        .select()
+        .from(schema.buildItems)
+        .where(eq(schema.buildItems.id, id))
+        .limit(1);
+      if (rows.length) existing = rowToBuildItem(rows[0]);
+      else if (edit) notFound();
+    }
   }
 
   return (

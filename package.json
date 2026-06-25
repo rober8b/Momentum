@@ -38,7 +38,8 @@
     "migrate:projects:local": "npx tsx --env-file=.env.local scripts/migrate-projects.ts",
     "migrate:freelance:local": "npx tsx --env-file=.env.local scripts/migrate-freelance.ts",
     "migrate:community:local": "npx tsx --env-file=.env.local scripts/migrate-community.ts",
-    "migrate:uni:local": "npx tsx --env-file=.env.local scripts/migrate-uni.ts"
+    "migrate:uni:local": "npx tsx --env-file=.env.local scripts/migrate-uni.ts",
+    "migrate:build:local": "npx tsx --env-file=.env.local scripts/migrate-build.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

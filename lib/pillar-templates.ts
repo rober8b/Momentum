@@ -146,9 +146,35 @@ export const UNI_TEMPLATE: PillarTemplate = {
   },
 };
 
+// Build is flat (no hierarchy, every item is_container: false) and never
+// routes through the generic engine's renderers — /build is a fully
+// dedicated route (like /uni and /community) whose UI (3 status columns +
+// SQL-level pagination on published/discarded + a bespoke publish-with-links
+// flow) doesn't fit GenericGrid/List/Kanban. view_type is 'custom' for
+// data-model consistency with Uni, but no config.renderer/custom-renderers.tsx
+// entry is registered — /p/build just shows the existing "no renderer
+// registered" fallback, same tradeoff Uni's design already accepts for that
+// side page. See docs/DYNAMIC_PILLARS.md, Phase 6a.
+export const BUILD_TEMPLATE: PillarTemplate = {
+  key: 'build',
+  name: 'Build',
+  icon: 'Megaphone',
+  description: 'Build-in-public — ideas, drafts y posts publicados.',
+  view_type: 'custom',
+  status_workflow: [
+    { key: 'idea', label: 'idea', color: 'muted' },
+    { key: 'draft', label: 'draft', color: 'warning' },
+    { key: 'scheduled', label: 'scheduled', color: 'accent' },
+    { key: 'published', label: 'publicado', color: 'success', is_terminal: true },
+    { key: 'discarded', label: 'descartado', color: 'muted', is_terminal: true },
+  ],
+  config: {},
+};
+
 export const PILLAR_TEMPLATES: Record<string, PillarTemplate> = {
   projects: PROJECTS_TEMPLATE,
   freelance: FREELANCE_TEMPLATE,
   community: COMMUNITY_TEMPLATE,
   uni: UNI_TEMPLATE,
+  build: BUILD_TEMPLATE,
 };
