@@ -13,8 +13,9 @@ import {
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
   isBuildDynamicEngineEnabled,
+  isWorkDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 import type { UserPlan } from '@/lib/types';
 
 export type { LimitedResource } from '@/lib/plans';
@@ -70,6 +71,7 @@ async function countResource(userId: string, resource: LimitedResource): Promise
       return Number(row?.value ?? 0);
     }
     case 'workblocks': {
+      if (isWorkDynamicEngineEnabled()) return countPillarItems(userId, WORK_TEMPLATE.key, false);
       const [row] = await db.select({ value: count() }).from(schema.workblocks).where(eq(schema.workblocks.user_id, userId));
       return Number(row?.value ?? 0);
     }

@@ -48,6 +48,7 @@ const LEGACY_PILLAR_ROUTES: Record<string, string> = {
   freelance: '/freelance',
   community: '/community',
   uni: '/uni',
+  work: '/work',
 };
 
 function revalidatePillarRoutes(key: string, parentItemId?: string | null): void {

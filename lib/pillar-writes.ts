@@ -104,6 +104,7 @@ export async function insertPillarItem(
     status: string;
     dueDate?: string | null;
     completedAt?: Date | null;
+    position?: number;
     fields?: Record<string, unknown>;
     isSample?: boolean;
   },
@@ -121,6 +122,7 @@ export async function insertPillarItem(
       status: params.status,
       due_date: params.dueDate ?? null,
       completed_at: params.completedAt ?? null,
+      position: params.position ?? 0,
       fields: params.fields ?? {},
       is_sample: params.isSample ?? false,
     })

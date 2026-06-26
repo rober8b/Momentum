@@ -171,10 +171,38 @@ export const BUILD_TEMPLATE: PillarTemplate = {
   config: {},
 };
 
+// Work is flat (no hierarchy, every item is_container: false) — like
+// Projects, but the FIRST top-level pillar to use view_type 'kanban'
+// directly (every other kanban so far has been a childView, e.g.
+// Freelance's tasks-per-client). type/priority/client/notes/links have no
+// typed-column fit and live in fields; due_date/completed_at/position map to
+// pillar_items' own typed columns. position matters here — Work's kanban
+// columns are manually ordered within each status (see sample data), unlike
+// Build/Projects where position is vestigial. See docs/DYNAMIC_PILLARS.md,
+// Phase 6c.
+export const WORK_TEMPLATE: PillarTemplate = {
+  key: 'work',
+  name: 'Work',
+  icon: 'Briefcase',
+  description: 'Tickets, tareas y reviews.',
+  view_type: 'kanban',
+  status_workflow: [
+    { key: 'backlog', label: 'backlog', color: 'muted' },
+    { key: 'today', label: 'hoy', color: 'accent' },
+    { key: 'in-progress', label: 'en progreso', color: 'warning' },
+    { key: 'blocked', label: 'bloqueado', color: 'danger' },
+    { key: 'done', label: 'hecho', color: 'success', is_terminal: true },
+  ],
+  config: {
+    cardFields: ['fields.priority', 'fields.client', 'due_date'],
+  },
+};
+
 export const PILLAR_TEMPLATES: Record<string, PillarTemplate> = {
   projects: PROJECTS_TEMPLATE,
   freelance: FREELANCE_TEMPLATE,
   community: COMMUNITY_TEMPLATE,
   uni: UNI_TEMPLATE,
   build: BUILD_TEMPLATE,
+  work: WORK_TEMPLATE,
 };

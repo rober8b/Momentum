@@ -1,4 +1,5 @@
 import { GenericGrid } from '@/components/pillars/GenericGrid';
+import { GenericKanban } from '@/components/pillars/GenericKanban';
 import { GenericList } from '@/components/pillars/GenericList';
 import { PillarItemForm } from '@/components/pillars/PillarItemForm';
 import { CUSTOM_RENDERERS } from '@/components/pillars/custom-renderers';
@@ -61,6 +62,13 @@ export function PillarPageContent({
 
       {pillar.view_type === 'grid' && <GenericGrid pillar={pillar} items={items} basePath={basePath} />}
       {pillar.view_type === 'list' && <GenericList pillar={pillar} items={items} />}
+      {pillar.view_type === 'kanban' && (
+        <GenericKanban
+          items={items}
+          workflow={pillar.status_workflow}
+          cardFields={Array.isArray(pillar.config.cardFields) ? (pillar.config.cardFields as string[]) : []}
+        />
+      )}
       {pillar.view_type === 'custom' && (() => {
         const Renderer = CUSTOM_RENDERERS[pillar.config.renderer as string];
         return Renderer ? (
@@ -71,7 +79,7 @@ export function PillarPageContent({
           </p>
         );
       })()}
-      {pillar.view_type !== 'grid' && pillar.view_type !== 'list' && pillar.view_type !== 'custom' && (
+      {pillar.view_type !== 'grid' && pillar.view_type !== 'list' && pillar.view_type !== 'kanban' && pillar.view_type !== 'custom' && (
         <p className="text-sm text-muted-foreground">
           view_type &quot;{pillar.view_type}&quot; todavía no tiene un renderer genérico.
         </p>

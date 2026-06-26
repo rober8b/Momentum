@@ -10,13 +10,14 @@ import {
   pillarItemToSubject,
   pillarItemToAssignment,
   pillarItemToBuildItem,
+  pillarItemToWorkblock,
 } from '@/lib/today';
 import { rowToPillarItem } from '@/lib/pillars';
 import { buildExportFiles, summaryLog, type ExportPayload } from '@/lib/vault-export';
-import { isUniDynamicEngineEnabled, isBuildDynamicEngineEnabled } from '@/lib/pillar-flags';
-import { UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import { isUniDynamicEngineEnabled, isBuildDynamicEngineEnabled, isWorkDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { UNI_TEMPLATE, BUILD_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 import { DEFAULT_USER_SETTINGS } from '@/lib/types';
-import type { Subject, Assignment, BuildItem, UserSettings } from '@/lib/types';
+import type { Subject, Assignment, BuildItem, Workblock, UserSettings } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -63,17 +64,47 @@ export async function GET(req: NextRequest) {
   for (const userRow of exportUsers) {
     const settings: UserSettings = { ...DEFAULT_USER_SETTINGS, ...(userRow.settings as Partial<UserSettings>) };
 
-    const wbRows = await db
-      .select()
-      .from(schema.workblocks)
-      .where(
-        and(
-          eq(schema.workblocks.user_id, userRow.id),
-          eq(schema.workblocks.status, 'done'),
-          gte(schema.workblocks.completed_at, range.startDate),
-        ),
-      );
-    const workblocks = wbRows.map(rowToWorkblock);
+    // Phase 6c: Work's done workblocks must come from pillar_items when cut
+    // over, same reasoning as Build below. Queried directly (not via
+    // getPillarItemsByKey) with the status+completed_at filter pushed into
+    // SQL — done workblocks grow unboundedly (years of tickets), so this
+    // must not fetch every workblock ever just to filter in JS.
+    let workblocks: Workblock[];
+    if (isWorkDynamicEngineEnabled()) {
+      const [workPillarRow] = await db
+        .select({ id: schema.pillars.id })
+        .from(schema.pillars)
+        .where(and(eq(schema.pillars.user_id, userRow.id), eq(schema.pillars.key, WORK_TEMPLATE.key)))
+        .limit(1);
+
+      if (workPillarRow) {
+        const itemRows = await db
+          .select()
+          .from(schema.pillarItems)
+          .where(
+            and(
+              eq(schema.pillarItems.pillar_id, workPillarRow.id),
+              eq(schema.pillarItems.status, 'done'),
+              gte(schema.pillarItems.completed_at, range.startDate),
+            ),
+          );
+        workblocks = itemRows.map(rowToPillarItem).map(pillarItemToWorkblock);
+      } else {
+        workblocks = [];
+      }
+    } else {
+      const wbRows = await db
+        .select()
+        .from(schema.workblocks)
+        .where(
+          and(
+            eq(schema.workblocks.user_id, userRow.id),
+            eq(schema.workblocks.status, 'done'),
+            gte(schema.workblocks.completed_at, range.startDate),
+          ),
+        );
+      workblocks = wbRows.map(rowToWorkblock);
+    }
 
     // Phase 6b: Build's published items must come from pillar_items when
     // cut over, same reasoning as Uni below. Queried directly (not via

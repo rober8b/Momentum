@@ -33,3 +33,12 @@ export function isUniDynamicEngineEnabled(): boolean {
 export function isBuildDynamicEngineEnabled(): boolean {
   return process.env.BUILD_DYNAMIC_ENGINE !== 'false';
 }
+
+// Set WORK_DYNAMIC_ENGINE=false to fall back to the legacy
+// workblocks-backed /work route instantly. Note: /work/[block] (the
+// workblock edit detail page) is NOT gated by this flag — it always reads
+// the legacy table directly, since the dynamic engine has no flat-item
+// detail route yet. Same accepted gap as Uni's assignment detail page above.
+export function isWorkDynamicEngineEnabled(): boolean {
+  return process.env.WORK_DYNAMIC_ENGINE !== 'false';
+}

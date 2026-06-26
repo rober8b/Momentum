@@ -8,8 +8,9 @@ import {
   isFreelanceDynamicEngineEnabled,
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
+  isWorkDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 
 export type SearchResult = {
   id: string;
@@ -43,6 +44,30 @@ async function searchProjects(uid: string, pattern: string): Promise<SearchResul
     .where(and(eq(schema.ownProjects.user_id, uid), ilike(schema.ownProjects.name, pattern)))
     .limit(3);
   return rows.map((p) => ({ id: p.id, title: p.name, type: 'project' as const, href: '/projects', meta: 'proyecto' }));
+}
+
+// Work is flat like Projects — no container/drill-down page exists for a
+// single workblock on the dynamic engine yet (/work/[block] stays
+// legacy-only, same accepted gap as /uni/[subject]/[assignment] — see
+// lib/pillar-flags.ts), so a dynamic-path match links back to the kanban
+// board itself, same as searchProjects.
+async function searchWorkblocks(uid: string, pattern: string): Promise<SearchResult[]> {
+  if (isWorkDynamicEngineEnabled()) {
+    const rows = await db
+      .select({ id: schema.pillarItems.id, title: schema.pillarItems.title, status: schema.pillarItems.status })
+      .from(schema.pillarItems)
+      .innerJoin(schema.pillars, eq(schema.pillars.id, schema.pillarItems.pillar_id))
+      .where(and(eq(schema.pillars.user_id, uid), eq(schema.pillars.key, WORK_TEMPLATE.key), ilike(schema.pillarItems.title, pattern)))
+      .limit(3);
+    return rows.map((w) => ({ id: w.id, title: w.title, type: 'workblock' as const, href: '/work', meta: w.status }));
+  }
+
+  const rows = await db
+    .select({ id: schema.workblocks.id, title: schema.workblocks.title, status: schema.workblocks.status })
+    .from(schema.workblocks)
+    .where(and(eq(schema.workblocks.user_id, uid), ilike(schema.workblocks.title, pattern)))
+    .limit(3);
+  return rows.map((w) => ({ id: w.id, title: w.title, type: 'workblock' as const, href: `/work/${w.id}`, meta: w.status }));
 }
 
 async function searchFreelanceClients(uid: string, pattern: string): Promise<SearchResult[]> {
@@ -205,12 +230,7 @@ export async function searchAll(query: string): Promise<SearchResult[]> {
 
   const [assignments, workblocks, buildItems, clients, fTasks, projects, community] = await Promise.all([
     searchAssignments(uid, pattern),
-    db
-      .select({ id: schema.workblocks.id, title: schema.workblocks.title, status: schema.workblocks.status })
-      .from(schema.workblocks)
-      .where(and(eq(schema.workblocks.user_id, uid), ilike(schema.workblocks.title, pattern)))
-      .limit(3)
-      .then((rows) => rows.map((w) => ({ id: w.id, title: w.title, type: 'workblock' as const, href: `/work/${w.id}`, meta: w.status }))),
+    searchWorkblocks(uid, pattern),
     db
       .select({ id: schema.buildItems.id, title: schema.buildItems.title, status: schema.buildItems.status })
       .from(schema.buildItems)

@@ -8,8 +8,9 @@ import {
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
   isBuildDynamicEngineEnabled,
+  isWorkDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import { FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 import type {
   Subject,
   Assignment,
@@ -104,6 +105,8 @@ function rowToBuildItem(r: typeof schema.buildItems.$inferSelect): BuildItem {
 
 // Priorities sortable as enum: high > med > low
 const PRIORITY_ORDER = sql`case ${schema.workblocks.priority} when 'high' then 0 when 'med' then 1 when 'low' then 2 else 3 end`;
+// Same ordering, but priority lives in pillar_items.fields jsonb once Work is cut over.
+const PILLAR_ITEM_PRIORITY_ORDER = sql`case (${schema.pillarItems.fields}->>'priority') when 'high' then 0 when 'med' then 1 when 'low' then 2 else 3 end`;
 
 // ----- DYNAMIC PILLAR ENGINE BRIDGE -----
 // Phase 5: Today/search/export must see items created through a cut-over
@@ -188,6 +191,24 @@ function pillarItemToBuildItem(item: PillarItem): BuildItem {
   };
 }
 
+function pillarItemToWorkblock(item: PillarItem): Workblock {
+  return {
+    id: item.id,
+    type: (item.fields.type as Workblock['type']) ?? 'task',
+    title: item.title,
+    description: item.description,
+    status: item.status as Workblock['status'],
+    priority: (item.fields.priority as Workblock['priority']) ?? 'med',
+    due_date: item.due_date,
+    client: (item.fields.client as string) ?? '',
+    notes: (item.fields.notes as string | null) ?? null,
+    links: (item.fields.links as Record<string, string>) ?? {},
+    position: item.position,
+    created_at: item.created_at,
+    completed_at: item.completed_at,
+  };
+}
+
 function pillarItemToCommunityItem(item: PillarItem, orgName: string | null): CommunityItem {
   return {
     id: item.id,
@@ -241,29 +262,69 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
     }));
 
   // ----- TRABAJO -----
-  const [activeRows, backlogHighRows] = await Promise.all([
-    db
-      .select()
-      .from(schema.workblocks)
-      .where(and(eq(schema.workblocks.user_id, userId), inArray(schema.workblocks.status, ['today', 'in-progress'])))
-      .orderBy(PRIORITY_ORDER, asc(schema.workblocks.position)),
-    db
-      .select()
-      .from(schema.workblocks)
-      .where(
-        and(
-          eq(schema.workblocks.user_id, userId),
-          eq(schema.workblocks.status, 'backlog'),
-          eq(schema.workblocks.priority, 'high'),
-        ),
-      )
-      .orderBy(asc(schema.workblocks.position)),
-  ]);
+  // Deliberately NOT using getPillarItemsByKey here — same reasoning as
+  // Build below: the today/in-progress + high-priority-backlog set is
+  // already filtered+ordered at the SQL level by the legacy query, so the
+  // dynamic path mirrors that instead of fetching every workblock ever.
+  let workblocks: Workblock[];
+  if (isWorkDynamicEngineEnabled()) {
+    const [workPillarRow] = await db
+      .select({ id: schema.pillars.id })
+      .from(schema.pillars)
+      .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, WORK_TEMPLATE.key)))
+      .limit(1);
 
-  const workblocks = [
-    ...activeRows.map(rowToWorkblock),
-    ...backlogHighRows.map(rowToWorkblock),
-  ];
+    if (workPillarRow) {
+      const [activeItemRows, backlogHighItemRows] = await Promise.all([
+        db
+          .select()
+          .from(schema.pillarItems)
+          .where(and(eq(schema.pillarItems.pillar_id, workPillarRow.id), inArray(schema.pillarItems.status, ['today', 'in-progress'])))
+          .orderBy(PILLAR_ITEM_PRIORITY_ORDER, asc(schema.pillarItems.position)),
+        db
+          .select()
+          .from(schema.pillarItems)
+          .where(
+            and(
+              eq(schema.pillarItems.pillar_id, workPillarRow.id),
+              eq(schema.pillarItems.status, 'backlog'),
+              sql`(${schema.pillarItems.fields}->>'priority') = 'high'`,
+            ),
+          )
+          .orderBy(asc(schema.pillarItems.position)),
+      ]);
+      workblocks = [
+        ...activeItemRows.map(rowToPillarItem).map(pillarItemToWorkblock),
+        ...backlogHighItemRows.map(rowToPillarItem).map(pillarItemToWorkblock),
+      ];
+    } else {
+      workblocks = [];
+    }
+  } else {
+    const [activeRows, backlogHighRows] = await Promise.all([
+      db
+        .select()
+        .from(schema.workblocks)
+        .where(and(eq(schema.workblocks.user_id, userId), inArray(schema.workblocks.status, ['today', 'in-progress'])))
+        .orderBy(PRIORITY_ORDER, asc(schema.workblocks.position)),
+      db
+        .select()
+        .from(schema.workblocks)
+        .where(
+          and(
+            eq(schema.workblocks.user_id, userId),
+            eq(schema.workblocks.status, 'backlog'),
+            eq(schema.workblocks.priority, 'high'),
+          ),
+        )
+        .orderBy(asc(schema.workblocks.position)),
+    ]);
+
+    workblocks = [
+      ...activeRows.map(rowToWorkblock),
+      ...backlogHighRows.map(rowToWorkblock),
+    ];
+  }
 
   // ----- BUILD -----
   // Deliberately NOT using getPillarItemsByKey here — Build's published/
@@ -458,4 +519,5 @@ export {
   pillarItemToSubject,
   pillarItemToAssignment,
   pillarItemToBuildItem,
+  pillarItemToWorkblock,
 };

@@ -12,8 +12,9 @@ import {
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
   isBuildDynamicEngineEnabled,
+  isWorkDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 const SAMPLE_COUNTS = {
@@ -194,17 +195,35 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
   }
 
   // ── WORKBLOCKS ───────────────────────────────────────────────────────────
+  // Phase 6c: when Work is on the dynamic engine, sample workblocks go to
+  // pillar_items instead of the legacy table. position is preserved
+  // per-column exactly as the legacy sample data sets it — it's real manual
+  // kanban ordering for Work, not vestigial like Build/Projects' position.
   if (includeWorkblocks) {
-    await db.insert(schema.workblocks).values([
-      { user_id: user.id, type: 'ticket', title: 'Fix authentication edge case on mobile', description: 'Users report login failing on iOS 17 Safari', status: 'in-progress', priority: 'high', client: 'Acme Corp', position: 0, is_sample: true },
-      { user_id: user.id, type: 'task', title: 'Write API documentation', description: 'Document all public endpoints with examples', status: 'today', priority: 'med', client: 'Acme Corp', position: 1, is_sample: true },
-      { user_id: user.id, type: 'review', title: 'Code review: payments module', description: 'PR #142 — stripe integration refactor', status: 'today', priority: 'high', client: 'Acme Corp', position: 2, is_sample: true },
-      { user_id: user.id, type: 'ticket', title: 'Dashboard loading performance', description: 'P95 load time over 3s — investigate queries', status: 'backlog', priority: 'high', client: '', position: 0, is_sample: true },
-      { user_id: user.id, type: 'task', title: 'Set up error monitoring', description: 'Integrate Sentry for frontend and backend', status: 'backlog', priority: 'med', client: '', position: 1, is_sample: true },
-      { user_id: user.id, type: 'meeting', title: 'Sprint planning Q3', description: '2-week sprint planning session', status: 'backlog', priority: 'med', client: 'Acme Corp', position: 2, is_sample: true },
-      { user_id: user.id, type: 'task', title: 'Update onboarding flow copy', description: 'A/B test results are in — implement winning variant', status: 'blocked', priority: 'med', client: 'Acme Corp', position: 0, is_sample: true },
-      { user_id: user.id, type: 'ticket', title: 'Migrate DB to Postgres 16', status: 'done', priority: 'high', client: '', position: 0, is_sample: true },
-    ]);
+    if (isWorkDynamicEngineEnabled()) {
+      const workPillarId = await ensurePillarForUser(user.id, WORK_TEMPLATE);
+      await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Fix authentication edge case on mobile', description: 'Users report login failing on iOS 17 Safari', status: 'in-progress', position: 0, isSample: true, fields: { type: 'ticket', priority: 'high', client: 'Acme Corp' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Write API documentation', description: 'Document all public endpoints with examples', status: 'today', position: 1, isSample: true, fields: { type: 'task', priority: 'med', client: 'Acme Corp' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Code review: payments module', description: 'PR #142 — stripe integration refactor', status: 'today', position: 2, isSample: true, fields: { type: 'review', priority: 'high', client: 'Acme Corp' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Dashboard loading performance', description: 'P95 load time over 3s — investigate queries', status: 'backlog', position: 0, isSample: true, fields: { type: 'ticket', priority: 'high', client: '' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Set up error monitoring', description: 'Integrate Sentry for frontend and backend', status: 'backlog', position: 1, isSample: true, fields: { type: 'task', priority: 'med', client: '' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Sprint planning Q3', description: '2-week sprint planning session', status: 'backlog', position: 2, isSample: true, fields: { type: 'meeting', priority: 'med', client: 'Acme Corp' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Update onboarding flow copy', description: 'A/B test results are in — implement winning variant', status: 'blocked', position: 0, isSample: true, fields: { type: 'task', priority: 'med', client: 'Acme Corp' } }),
+        insertPillarItem({ userId: user.id, pillarId: workPillarId, isContainer: false, title: 'Migrate DB to Postgres 16', status: 'done', position: 0, isSample: true, fields: { type: 'ticket', priority: 'high', client: '' } }),
+      ]);
+    } else {
+      await db.insert(schema.workblocks).values([
+        { user_id: user.id, type: 'ticket', title: 'Fix authentication edge case on mobile', description: 'Users report login failing on iOS 17 Safari', status: 'in-progress', priority: 'high', client: 'Acme Corp', position: 0, is_sample: true },
+        { user_id: user.id, type: 'task', title: 'Write API documentation', description: 'Document all public endpoints with examples', status: 'today', priority: 'med', client: 'Acme Corp', position: 1, is_sample: true },
+        { user_id: user.id, type: 'review', title: 'Code review: payments module', description: 'PR #142 — stripe integration refactor', status: 'today', priority: 'high', client: 'Acme Corp', position: 2, is_sample: true },
+        { user_id: user.id, type: 'ticket', title: 'Dashboard loading performance', description: 'P95 load time over 3s — investigate queries', status: 'backlog', priority: 'high', client: '', position: 0, is_sample: true },
+        { user_id: user.id, type: 'task', title: 'Set up error monitoring', description: 'Integrate Sentry for frontend and backend', status: 'backlog', priority: 'med', client: '', position: 1, is_sample: true },
+        { user_id: user.id, type: 'meeting', title: 'Sprint planning Q3', description: '2-week sprint planning session', status: 'backlog', priority: 'med', client: 'Acme Corp', position: 2, is_sample: true },
+        { user_id: user.id, type: 'task', title: 'Update onboarding flow copy', description: 'A/B test results are in — implement winning variant', status: 'blocked', priority: 'med', client: 'Acme Corp', position: 0, is_sample: true },
+        { user_id: user.id, type: 'ticket', title: 'Migrate DB to Postgres 16', status: 'done', priority: 'high', client: '', position: 0, is_sample: true },
+      ]);
+    }
   }
 
   // ── FREELANCE CLIENTS + TASKS ────────────────────────────────────────────
