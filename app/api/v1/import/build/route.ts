@@ -4,6 +4,9 @@ import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
 import { checkLimit } from '@/lib/limits';
+import { isBuildDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { BUILD_TEMPLATE } from '@/lib/pillar-templates';
+import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +48,11 @@ export async function POST(request: Request) {
     const limitCheck = await checkLimit(userId, 'build_items');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
 
+    // Phase 6b: when Build is on the dynamic engine, import goes to
+    // pillar_items — the legacy build_items table would otherwise become
+    // invisible to /build's own UI.
+    const pillarId = isBuildDynamicEngineEnabled() ? await ensurePillarForUser(userId, BUILD_TEMPLATE) : null;
+
     for (let i = 0; i < parsed.data.items.length; i++) {
       if (i >= remaining) {
         errors.push({ index: i, error: `plan limit reached (${limitCheck.limit} build items)` });
@@ -52,21 +60,40 @@ export async function POST(request: Request) {
       }
       const item = parsed.data.items[i];
       try {
-        const [row] = await db
-          .insert(schema.buildItems)
-          .values({
-            user_id: userId,
-            type: item.type,
+        if (pillarId) {
+          const id = await insertPillarItem({
+            userId,
+            pillarId,
+            isContainer: false,
             title: item.title,
-            draft: item.draft ?? null,
-            hook: item.hook ?? null,
-            platforms: item.platforms,
             status: item.status,
-            related_project: item.related_project ?? null,
-            links: item.links ?? {},
-          })
-          .returning({ id: schema.buildItems.id });
-        if (row) imported.push(row.id);
+            fields: {
+              type: item.type,
+              draft: item.draft ?? null,
+              hook: item.hook ?? null,
+              platforms: item.platforms,
+              related_project: item.related_project ?? null,
+              links: item.links ?? {},
+            },
+          });
+          imported.push(id);
+        } else {
+          const [row] = await db
+            .insert(schema.buildItems)
+            .values({
+              user_id: userId,
+              type: item.type,
+              title: item.title,
+              draft: item.draft ?? null,
+              hook: item.hook ?? null,
+              platforms: item.platforms,
+              status: item.status,
+              related_project: item.related_project ?? null,
+              links: item.links ?? {},
+            })
+            .returning({ id: schema.buildItems.id });
+          if (row) imported.push(row.id);
+        }
       } catch (err) {
         errors.push({ index: i, error: err instanceof Error ? err.message : 'unknown error' });
       }

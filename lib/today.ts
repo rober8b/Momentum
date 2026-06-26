@@ -7,8 +7,9 @@ import {
   isFreelanceDynamicEngineEnabled,
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
+  isBuildDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
 import type {
   Subject,
   Assignment,
@@ -265,14 +266,41 @@ export async function getTodayData(userId: string, tz: string): Promise<TodayDat
   ];
 
   // ----- BUILD -----
-  const buildRows = await db
-    .select()
-    .from(schema.buildItems)
-    .where(and(eq(schema.buildItems.user_id, userId), inArray(schema.buildItems.status, ['idea', 'draft'])))
-    .orderBy(desc(schema.buildItems.created_at))
-    .limit(8);
+  // Deliberately NOT using getPillarItemsByKey here — Build's published/
+  // discarded buckets grow unboundedly (years of posts), so this queries
+  // pillar_items directly with the same status filter + ORDER BY + LIMIT the
+  // legacy query already used, instead of fetching every item ever and
+  // slicing in JS. See app/build/page.tsx's fetchBuildItemsDynamic for the
+  // same reasoning.
+  let buildItems: BuildItem[];
+  if (isBuildDynamicEngineEnabled()) {
+    const [buildPillarRow] = await db
+      .select({ id: schema.pillars.id })
+      .from(schema.pillars)
+      .where(and(eq(schema.pillars.user_id, userId), eq(schema.pillars.key, BUILD_TEMPLATE.key)))
+      .limit(1);
 
-  const buildItems = buildRows.map(rowToBuildItem);
+    if (buildPillarRow) {
+      const itemRows = await db
+        .select()
+        .from(schema.pillarItems)
+        .where(and(eq(schema.pillarItems.pillar_id, buildPillarRow.id), inArray(schema.pillarItems.status, ['idea', 'draft'])))
+        .orderBy(desc(schema.pillarItems.created_at))
+        .limit(8);
+      buildItems = itemRows.map(rowToPillarItem).map(pillarItemToBuildItem);
+    } else {
+      buildItems = [];
+    }
+  } else {
+    const buildRows = await db
+      .select()
+      .from(schema.buildItems)
+      .where(and(eq(schema.buildItems.user_id, userId), inArray(schema.buildItems.status, ['idea', 'draft'])))
+      .orderBy(desc(schema.buildItems.created_at))
+      .limit(8);
+
+    buildItems = buildRows.map(rowToBuildItem);
+  }
 
   // ----- FREELANCE -----
   let freelanceTasks: (FreelanceTask & { clientName: string })[];

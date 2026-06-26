@@ -9,12 +9,14 @@ import {
   getPillarItemsByKey,
   pillarItemToSubject,
   pillarItemToAssignment,
+  pillarItemToBuildItem,
 } from '@/lib/today';
+import { rowToPillarItem } from '@/lib/pillars';
 import { buildExportFiles, summaryLog, type ExportPayload } from '@/lib/vault-export';
-import { isUniDynamicEngineEnabled } from '@/lib/pillar-flags';
-import { UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { isUniDynamicEngineEnabled, isBuildDynamicEngineEnabled } from '@/lib/pillar-flags';
+import { UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
 import { DEFAULT_USER_SETTINGS } from '@/lib/types';
-import type { Subject, Assignment, UserSettings } from '@/lib/types';
+import type { Subject, Assignment, BuildItem, UserSettings } from '@/lib/types';
 
 export const runtime = 'nodejs';
 
@@ -61,18 +63,48 @@ export async function GET(req: NextRequest) {
   for (const userRow of exportUsers) {
     const settings: UserSettings = { ...DEFAULT_USER_SETTINGS, ...(userRow.settings as Partial<UserSettings>) };
 
-    const [wbRows, biRows] = await Promise.all([
-      db
-        .select()
-        .from(schema.workblocks)
-        .where(
-          and(
-            eq(schema.workblocks.user_id, userRow.id),
-            eq(schema.workblocks.status, 'done'),
-            gte(schema.workblocks.completed_at, range.startDate),
-          ),
+    const wbRows = await db
+      .select()
+      .from(schema.workblocks)
+      .where(
+        and(
+          eq(schema.workblocks.user_id, userRow.id),
+          eq(schema.workblocks.status, 'done'),
+          gte(schema.workblocks.completed_at, range.startDate),
         ),
-      db
+      );
+    const workblocks = wbRows.map(rowToWorkblock);
+
+    // Phase 6b: Build's published items must come from pillar_items when
+    // cut over, same reasoning as Uni below. Queried directly (not via
+    // getPillarItemsByKey) with the status+completed_at filter pushed into
+    // SQL — published items grow unboundedly (years of posts), so this must
+    // not fetch every build item ever just to filter in JS.
+    let buildItems: BuildItem[];
+    if (isBuildDynamicEngineEnabled()) {
+      const [buildPillarRow] = await db
+        .select({ id: schema.pillars.id })
+        .from(schema.pillars)
+        .where(and(eq(schema.pillars.user_id, userRow.id), eq(schema.pillars.key, BUILD_TEMPLATE.key)))
+        .limit(1);
+
+      if (buildPillarRow) {
+        const itemRows = await db
+          .select()
+          .from(schema.pillarItems)
+          .where(
+            and(
+              eq(schema.pillarItems.pillar_id, buildPillarRow.id),
+              eq(schema.pillarItems.status, 'published'),
+              gte(schema.pillarItems.completed_at, range.startDate),
+            ),
+          );
+        buildItems = itemRows.map(rowToPillarItem).map(pillarItemToBuildItem);
+      } else {
+        buildItems = [];
+      }
+    } else {
+      const biRows = await db
         .select()
         .from(schema.buildItems)
         .where(
@@ -81,8 +113,9 @@ export async function GET(req: NextRequest) {
             eq(schema.buildItems.status, 'published'),
             gte(schema.buildItems.published_at, range.startDate),
           ),
-        ),
-    ]);
+        );
+      buildItems = biRows.map(rowToBuildItem);
+    }
 
     // Phase 5: Uni's assignments/subjects must come from pillar_items when
     // cut over — new assignments created through the dynamic UI write only
@@ -116,12 +149,10 @@ export async function GET(req: NextRequest) {
 
     const subjectMap = new Map(subjects.map((s) => [s.id, s.vault_slug]));
 
-    const workblocks = wbRows.map(rowToWorkblock);
     const assignments = doneAssignments.map((a) => ({
       ...a,
       subjectSlug: a.subject_id ? subjectMap.get(a.subject_id) ?? null : null,
     }));
-    const buildItems = biRows.map(rowToBuildItem);
 
     const payload: ExportPayload = {
       workblocks,

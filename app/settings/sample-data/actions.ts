@@ -11,8 +11,9 @@ import {
   isFreelanceDynamicEngineEnabled,
   isCommunityDynamicEngineEnabled,
   isUniDynamicEngineEnabled,
+  isBuildDynamicEngineEnabled,
 } from '@/lib/pillar-flags';
-import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE } from '@/lib/pillar-templates';
+import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE } from '@/lib/pillar-templates';
 import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
 const SAMPLE_COUNTS = {
@@ -316,13 +317,25 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
   }
 
   // ── BUILD ITEMS ───────────────────────────────────────────────────────────
+  // Phase 6b: when Build is on the dynamic engine, sample build items go to
+  // pillar_items instead of the legacy table.
   if (includeBuildItems) {
-    await db.insert(schema.buildItems).values([
-      { user_id: user.id, type: 'project', title: 'Built a CLI tool in a weekend', hook: 'I built a developer productivity CLI in 48 hours. Here is what I learned.', status: 'draft', platforms: ['x', 'linkedin'], is_sample: true },
-      { user_id: user.id, type: 'opinion', title: 'Why I stopped using ORMs', status: 'idea', platforms: ['x'], is_sample: true },
-      { user_id: user.id, type: 'open-source', title: 'Open sourcing my SaaS boilerplate', hook: 'After 6 months of building in private, I am open sourcing everything.', status: 'published', platforms: ['x', 'linkedin'], is_sample: true },
-      { user_id: user.id, type: 'demo', title: 'Demo: auth in 5 minutes', hook: 'Full auth system — signup, login, password reset — in under 5 minutes.', status: 'idea', platforms: ['x'], is_sample: true },
-    ]);
+    if (isBuildDynamicEngineEnabled()) {
+      const buildPillarId = await ensurePillarForUser(user.id, BUILD_TEMPLATE);
+      await Promise.all([
+        insertPillarItem({ userId: user.id, pillarId: buildPillarId, isContainer: false, title: 'Built a CLI tool in a weekend', status: 'draft', isSample: true, fields: { type: 'project', hook: 'I built a developer productivity CLI in 48 hours. Here is what I learned.', platforms: ['x', 'linkedin'] } }),
+        insertPillarItem({ userId: user.id, pillarId: buildPillarId, isContainer: false, title: 'Why I stopped using ORMs', status: 'idea', isSample: true, fields: { type: 'opinion', platforms: ['x'] } }),
+        insertPillarItem({ userId: user.id, pillarId: buildPillarId, isContainer: false, title: 'Open sourcing my SaaS boilerplate', status: 'published', isSample: true, fields: { type: 'open-source', hook: 'After 6 months of building in private, I am open sourcing everything.', platforms: ['x', 'linkedin'] } }),
+        insertPillarItem({ userId: user.id, pillarId: buildPillarId, isContainer: false, title: 'Demo: auth in 5 minutes', status: 'idea', isSample: true, fields: { type: 'demo', hook: 'Full auth system — signup, login, password reset — in under 5 minutes.', platforms: ['x'] } }),
+      ]);
+    } else {
+      await db.insert(schema.buildItems).values([
+        { user_id: user.id, type: 'project', title: 'Built a CLI tool in a weekend', hook: 'I built a developer productivity CLI in 48 hours. Here is what I learned.', status: 'draft', platforms: ['x', 'linkedin'], is_sample: true },
+        { user_id: user.id, type: 'opinion', title: 'Why I stopped using ORMs', status: 'idea', platforms: ['x'], is_sample: true },
+        { user_id: user.id, type: 'open-source', title: 'Open sourcing my SaaS boilerplate', hook: 'After 6 months of building in private, I am open sourcing everything.', status: 'published', platforms: ['x', 'linkedin'], is_sample: true },
+        { user_id: user.id, type: 'demo', title: 'Demo: auth in 5 minutes', hook: 'Full auth system — signup, login, password reset — in under 5 minutes.', status: 'idea', platforms: ['x'], is_sample: true },
+      ]);
+    }
   }
 
   logAudit({ userId: user.id, action: 'sample_data_loaded', metadata: { skipped } });
