@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const errors: Array<{ index: number; error: string }> = [];
     const subjectCache = new Map<string, string>(); // `${name}::${semester}` -> id
 
-    const limitCheck = await checkLimit(userId, 'assignments');
+    const limitCheck = await checkLimit(userId, 'leaf_items');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
 
     // Phase 5b: when Uni is on the dynamic engine, import goes to

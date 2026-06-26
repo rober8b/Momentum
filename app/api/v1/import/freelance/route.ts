@@ -3,7 +3,6 @@ import { db, schema } from '@/lib/db';
 import { requireApiToken, ApiAuthError } from '@/lib/api-auth';
 import { enforceApiRateLimit } from '@/lib/api-rate-limit';
 import { logAudit } from '@/lib/audit';
-import { checkLimit } from '@/lib/limits';
 import { isFreelanceDynamicEngineEnabled } from '@/lib/pillar-flags';
 import { FREELANCE_TEMPLATE } from '@/lib/pillar-templates';
 import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
@@ -52,10 +51,6 @@ export async function POST(request: Request) {
     const imported: string[] = [];
     const errors: Array<{ index: number; error: string }> = [];
 
-    // Each item creates one client (plus its tasks), so gate on the client limit.
-    const limitCheck = await checkLimit(userId, 'freelance_clients');
-    const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
-
     // Phase 5b: when Freelance is on the dynamic engine, import goes to
     // pillar_items — the legacy freelance_clients/tasks tables would
     // otherwise become invisible to /freelance's own UI. Clients are NOT
@@ -64,10 +59,6 @@ export async function POST(request: Request) {
     const pillarId = isFreelanceDynamicEngineEnabled() ? await ensurePillarForUser(userId, FREELANCE_TEMPLATE) : null;
 
     for (let i = 0; i < parsed.data.clients.length; i++) {
-      if (i >= remaining) {
-        errors.push({ index: i, error: `plan limit reached (${limitCheck.limit} freelance clients)` });
-        continue;
-      }
       const c = parsed.data.clients[i];
       try {
         const result = await db.transaction(async (tx) => {

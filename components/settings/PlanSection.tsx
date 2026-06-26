@@ -4,7 +4,7 @@ import { UpgradeButton } from '@/components/settings/UpgradeButton';
 import { ManageBillingButton } from '@/components/settings/ManageBillingButton';
 import { t } from '@/lib/strings';
 import type { Lang } from '@/lib/strings';
-import type { ResourceUsage } from '@/lib/limits';
+import type { UsageSummary } from '@/lib/limits';
 import type { UserPlan, UserPlanStatus } from '@/lib/types';
 
 const PLAN_BADGE: Record<UserPlan, 'muted' | 'accent'> = {
@@ -24,17 +24,16 @@ const STATUS_LABEL_KEY: Record<UserPlanStatus, 'planStatusActive' | 'planStatusP
   cancelled: 'planStatusCancelled',
 };
 
-const RESOURCE_LABEL_KEY = {
-  assignments: 'resourceAssignments',
-  workblocks: 'resourceWorkblocks',
-  build_items: 'resourceBuildItems',
-  freelance_clients: 'resourceFreelanceClients',
-  freelance_tasks: 'resourceFreelanceTasks',
-  own_projects: 'resourceOwnProjects',
-  organizations: 'resourceOrganizations',
-  community_items: 'resourceCommunityItems',
-  api_tokens: 'resourceApiTokens',
-} as const;
+function UsageRow({ label, current, limit, lang }: { label: string; current: number; limit: number | null; lang: Lang }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-foreground">{label}</span>
+      <span className="text-muted-foreground tabular-nums">
+        {limit === null ? `${current} · ${t('planUnlimited', lang)}` : `${current} / ${limit}`}
+      </span>
+    </div>
+  );
+}
 
 export function PlanSection({
   plan,
@@ -48,7 +47,7 @@ export function PlanSection({
   planStatus: UserPlanStatus;
   hosted: boolean;
   billingConfigured: boolean;
-  usage: ResourceUsage[];
+  usage: UsageSummary | null;
   lang: Lang;
 }) {
   return (
@@ -70,21 +69,15 @@ export function PlanSection({
 
         {!hosted ? (
           <p className="text-sm text-muted-foreground">{t('planSelfHosted', lang)}</p>
-        ) : (
+        ) : usage ? (
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('planUsage', lang)}</p>
             <div className="space-y-1.5">
-              {usage.map(({ resource, current, limit }) => (
-                <div key={resource} className="flex items-center justify-between text-sm">
-                  <span className="text-foreground">{t(RESOURCE_LABEL_KEY[resource], lang)}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {limit === null ? `${current} · ${t('planUnlimited', lang)}` : `${current} / ${limit}`}
-                  </span>
-                </div>
-              ))}
+              <UsageRow label={t('resourceLeafItems', lang)} current={usage.leafItems.current} limit={usage.leafItems.limit} lang={lang} />
+              <UsageRow label={t('resourceApiTokens', lang)} current={usage.apiTokens.current} limit={usage.apiTokens.limit} lang={lang} />
             </div>
           </div>
-        )}
+        ) : null}
 
         {hosted && (
           <div className="pt-2 border-t border-border">

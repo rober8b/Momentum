@@ -24,7 +24,7 @@ export default async function ProfilePage({
   const [[userRow], accounts, usage, [sampleSubject]] = await Promise.all([
     db.select({ password_hash: schema.users.password_hash }).from(schema.users).where(eq(schema.users.id, user.id)).limit(1),
     db.select({ provider: schema.oauthAccounts.provider }).from(schema.oauthAccounts).where(eq(schema.oauthAccounts.user_id, user.id)),
-    hosted ? getUsageSummary(user.id, user.plan) : Promise.resolve([]),
+    hosted ? getUsageSummary(user.id) : Promise.resolve(null),
     db
       .select({ id: schema.subjects.id })
       .from(schema.subjects)

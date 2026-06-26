@@ -141,14 +141,7 @@ export const strings = {
     billingCheckoutSuccess: "thanks! we're confirming your subscription — this can take a few seconds.",
     billingManage: 'manage billing',
     limitReachedTemplate: "you've reached your plan's limit of {limit} {resource}. upgrade to pro for unlimited.",
-    resourceAssignments: 'assignments',
-    resourceWorkblocks: 'workblocks',
-    resourceBuildItems: 'build items',
-    resourceFreelanceClients: 'freelance clients',
-    resourceFreelanceTasks: 'freelance tasks',
-    resourceOwnProjects: 'projects',
-    resourceOrganizations: 'organizations',
-    resourceCommunityItems: 'community items',
+    resourceLeafItems: 'items',
     resourceApiTokens: 'API tokens',
 
     // Onboarding — welcome modal
@@ -314,14 +307,7 @@ export const strings = {
     billingCheckoutSuccess: 'gracias! estamos confirmando tu suscripción — esto puede tardar unos segundos.',
     billingManage: 'administrar facturación',
     limitReachedTemplate: 'alcanzaste el límite de tu plan: {limit} {resource}. actualizá a pro para tener ilimitado.',
-    resourceAssignments: 'TPs',
-    resourceWorkblocks: 'tickets',
-    resourceBuildItems: 'posts de build',
-    resourceFreelanceClients: 'clientes freelance',
-    resourceFreelanceTasks: 'tareas freelance',
-    resourceOwnProjects: 'proyectos',
-    resourceOrganizations: 'organizaciones',
-    resourceCommunityItems: 'compromisos',
+    resourceLeafItems: 'items',
     resourceApiTokens: 'tokens de API',
 
     // Onboarding — welcome modal
@@ -378,14 +364,7 @@ export function t(key: StringKey, lang: Lang = 'en'): string {
 }
 
 const RESOURCE_LABEL_KEYS: Record<LimitedResource, StringKey> = {
-  assignments: 'resourceAssignments',
-  workblocks: 'resourceWorkblocks',
-  build_items: 'resourceBuildItems',
-  freelance_clients: 'resourceFreelanceClients',
-  freelance_tasks: 'resourceFreelanceTasks',
-  own_projects: 'resourceOwnProjects',
-  organizations: 'resourceOrganizations',
-  community_items: 'resourceCommunityItems',
+  leaf_items: 'resourceLeafItems',
   api_tokens: 'resourceApiTokens',
 };
 

@@ -55,9 +55,9 @@ const assignmentSchema = z.object({
 
 export async function createAssignment(input: z.infer<typeof assignmentSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'assignments');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'assignments', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
   const parsed = assignmentSchema.parse(input);
   const [row] = await db.insert(schema.assignments).values({ ...parsed, user_id: user.id, status: 'todo' }).returning({ id: schema.assignments.id });

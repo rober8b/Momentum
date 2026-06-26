@@ -93,7 +93,7 @@ Today (`lib/today.ts`), search (`app/search/actions.ts`), export (`app/api/expor
 
 ### Deuda conocida (verificar en `docs/DYNAMIC_PILLARS.md` antes de asumir resuelta)
 
-- **Plan limits NO rediseñados:** siguen siendo per-recurso en `lib/plans.ts`. El plan era "total de items hoja (`is_container=false`) entre todos los pilares". Pendiente.
+- Plan limits rediseñados en Sprint 11 — `FREE_LEAF_ITEM_LIMIT = 150` en `lib/plans.ts`, conteo único cross-pilar en `lib/limits.ts`. Contenedores nunca bloqueados.
 - `/uni/[subject]/[assignment]` (detalle de assignment) sigue leyendo tablas legacy — no cutoveado.
 - Vistas genéricas menos pulidas que las bespoke (Kanban perdió colores por columna, etc.) — costo aceptado, mejora de UX futura.
 - `legacy_source`/`legacy_id` para idempotencia de migración viven en `fields` jsonb, no en columna dedicada.
@@ -183,7 +183,7 @@ Para más patrones (server component que lee data, client component con server a
 
 `MOMENTUM_MODE`: `self_hosted` (default, incl. `undefined`) = `checkLimit()` siempre `allowed: true` sin tocar la DB. `hosted` = aplica `lib/plans.ts:PLAN_LIMITS` según `user.plan` (`free`|`pro`; pro = unlimited).
 
-⚠️ **Los límites siguen siendo per-recurso (deuda).** El modelo aprobado es "total de items hoja entre pilares" — ver deuda arriba. Para cambiar un número hoy: `PLAN_LIMITS.free` en `lib/plans.ts`.
+Para ajustar el límite: cambiar `FREE_LEAF_ITEM_LIMIT` en `lib/plans.ts`.
 
 Enforced en: server actions de creación (`checkLimit` antes del insert), `/api/v1/import/*`, y mostrado en `/settings/profile` (`PlanSection`).
 
@@ -207,7 +207,7 @@ Setup completo, tabla de eventos, y archivos clave en `docs/BILLING.md`.
 
 ## Tests
 
-Vitest, `*.test.ts` junto al código. Mocks de DB en `test/stubs/db-mock.ts` (sin Postgres real). Cubre los flujos donde un bug es caro: **dinero** (`lib/polar-webhook.test.ts`) y **acceso** (`lib/auth.test.ts`, `lib/limits.test.ts`, `app/admin/actions.test.ts`). No agregar tests por agregar — vienen cuando hay un flujo de dinero/acceso nuevo o un bug real. Detalle de mocking en `docs/TESTS.md`.
+Vitest, `*.test.ts` junto al código. Mocks de DB en `test/stubs/db-mock.ts` (sin Postgres real). Cubre los flujos donde un bug es caro: **dinero** (`lib/polar-webhook.test.ts`) y **acceso** (`lib/auth.test.ts`, `lib/limits.test.ts`, `app/admin/actions.test.ts`). No agregar tests por agregar — vienen cuando hay un flujo de dinero/acceso nuevo o un bug real. Detalle de mocking en `docs/PATTERNS.md` (sección Tests).
 
 ---
 

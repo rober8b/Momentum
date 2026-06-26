@@ -49,9 +49,7 @@ this doc.
    `lib/pillar-templates.ts`) — product config that changes via code review, not user data. Instantiating
    a template means inserting one `pillars` row copied from it (`source_template` set for traceability).
    Copy-not-reference means a user's pillar is immediately independent of the template.
-7. **Free-plan limit will be total items across all pillars, not per-pillar.** Not implemented this
-   sprint — `lib/plans.ts` still has the old per-resource-table limits. Flagging so nobody re-derives this
-   from scratch later: when dynamic pillars replace the old tables, the limit model changes shape too.
+7. **Free-plan limit is 150 total leaf items (is_container=false) across ALL pillars.** Implemented in Sprint 11 — `lib/plans.ts` has a single `FREE_LEAF_ITEM_LIMIT = 150` constant; `lib/limits.ts` counts `pillar_items WHERE is_container = false` via a single cross-pillar query. Containers are never blocked. Pro is unlimited. Self-host is always unlimited.
 
 ## Data model
 

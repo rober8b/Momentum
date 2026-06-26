@@ -11,6 +11,7 @@
 import 'server-only';
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
+import { checkLimit } from '@/lib/limits';
 import type { PillarTemplate } from '@/lib/pillar-templates';
 
 // Find-or-create the user's `pillars` row for this template — same shape
@@ -93,6 +94,15 @@ type DbExecutor = Pick<typeof db, 'insert' | 'select'>;
 // Plain insert, no dedup — used wherever the legacy behavior never deduped
 // either (Freelance import never dedupes clients by name; sample data never
 // dedupes anything).
+// Used by insertPillarItem as a typed sentinel so the caller's catch can
+// distinguish a limit error from an unexpected DB error.
+export class LeafItemLimitError extends Error {
+  readonly code = 'limit_reached' as const;
+  constructor(public readonly limit: number) {
+    super(`plan limit reached (${limit} items)`);
+  }
+}
+
 export async function insertPillarItem(
   params: {
     userId: string;
@@ -110,6 +120,11 @@ export async function insertPillarItem(
   },
   executor: DbExecutor = db,
 ): Promise<string> {
+  if (!params.isContainer) {
+    const limitCheck = await checkLimit(params.userId, 'leaf_items');
+    if (!limitCheck.allowed) throw new LeafItemLimitError(limitCheck.limit!);
+  }
+
   const [row] = await executor
     .insert(schema.pillarItems)
     .values({

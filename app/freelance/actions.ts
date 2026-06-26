@@ -21,10 +21,6 @@ const clientSchema = z.object({
 
 export async function createClient(input: z.infer<typeof clientSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'freelance_clients');
-  if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'freelance_clients', limit: limitCheck.limit! };
-  }
   const parsed = clientSchema.parse(input);
   const [row] = await db.insert(schema.freelanceClients).values({ ...parsed, user_id: user.id }).returning({ id: schema.freelanceClients.id });
   logAudit({ userId: user.id, action: 'create', entityType: 'freelance_client', entityId: row?.id });
@@ -62,9 +58,9 @@ const taskSchema = z.object({
 
 export async function createFreelanceTask(input: z.infer<typeof taskSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'freelance_tasks');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'freelance_tasks', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
   const parsed = taskSchema.parse(input);
   const [row] = await db.insert(schema.freelanceTasks).values({ ...parsed, user_id: user.id }).returning({ id: schema.freelanceTasks.id });

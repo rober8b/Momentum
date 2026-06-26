@@ -22,10 +22,6 @@ const orgSchema = z.object({
 
 export async function createOrganization(input: z.infer<typeof orgSchema>): Promise<LimitReachedError | { id: string } | undefined> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'organizations');
-  if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'organizations', limit: limitCheck.limit! };
-  }
   const parsed = orgSchema.parse(input);
   const [row] = await db
     .insert(schema.organizations)
@@ -38,9 +34,9 @@ export async function createOrganization(input: z.infer<typeof orgSchema>): Prom
 
 export async function createCommunityItem(input: z.infer<typeof communitySchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'community_items');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'community_items', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
   const parsed = communitySchema.parse(input);
   const [row] = await db

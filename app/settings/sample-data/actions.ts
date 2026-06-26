@@ -17,16 +17,8 @@ import {
 import { PROJECTS_TEMPLATE, FREELANCE_TEMPLATE, COMMUNITY_TEMPLATE, UNI_TEMPLATE, BUILD_TEMPLATE, WORK_TEMPLATE } from '@/lib/pillar-templates';
 import { ensurePillarForUser, insertPillarItem } from '@/lib/pillar-writes';
 
-const SAMPLE_COUNTS = {
-  assignments: 4,
-  workblocks: 8,
-  build_items: 4,
-  freelance_clients: 2,
-  freelance_tasks: 4,
-  own_projects: 3,
-  organizations: 2,
-  community_items: 3,
-} as const;
+// Leaf items (is_container=false) inserted by sample data — checked against the free plan limit.
+const SAMPLE_LEAF_COUNT = 4 + 8 + 4 + 4 + 3 + 3; // assignments + workblocks + build + freelance tasks + projects + community
 
 const PILLAR_PATHS = ['/', '/uni', '/work', '/freelance', '/projects', '/community', '/build'];
 
@@ -59,47 +51,22 @@ export async function loadSampleData(): Promise<{ alreadyLoaded?: boolean; skipp
         .limit(1);
   if (existing.length > 0) return { alreadyLoaded: true };
 
-  const [
-    assignmentsCheck,
-    workblocksCheck,
-    buildItemsCheck,
-    freelanceClientsCheck,
-    freelanceTasksCheck,
-    ownProjectsCheck,
-    organizationsCheck,
-    communityItemsCheck,
-  ] = await Promise.all([
-    checkLimit(user.id, 'assignments'),
-    checkLimit(user.id, 'workblocks'),
-    checkLimit(user.id, 'build_items'),
-    checkLimit(user.id, 'freelance_clients'),
-    checkLimit(user.id, 'freelance_tasks'),
-    checkLimit(user.id, 'own_projects'),
-    checkLimit(user.id, 'organizations'),
-    checkLimit(user.id, 'community_items'),
-  ]);
+  // Single total-leaf check: containers (subjects, clients, orgs) are always
+  // inserted; leaf items are skipped as a block if the cap wouldn't fit them.
+  const leafCheck = await checkLimit(user.id, 'leaf_items');
+  const includeLeafItems = leafCheck.limit === null || leafCheck.current + SAMPLE_LEAF_COUNT <= leafCheck.limit;
 
-  const fits = (check: { current: number; limit: number | null }, count: number) =>
-    check.limit === null || check.current + count <= check.limit;
-
-  const includeAssignments = fits(assignmentsCheck, SAMPLE_COUNTS.assignments);
-  const includeWorkblocks = fits(workblocksCheck, SAMPLE_COUNTS.workblocks);
-  const includeBuildItems = fits(buildItemsCheck, SAMPLE_COUNTS.build_items);
-  const includeFreelanceClients = fits(freelanceClientsCheck, SAMPLE_COUNTS.freelance_clients);
-  const includeFreelanceTasks = includeFreelanceClients && fits(freelanceTasksCheck, SAMPLE_COUNTS.freelance_tasks);
-  const includeOwnProjects = fits(ownProjectsCheck, SAMPLE_COUNTS.own_projects);
-  const includeOrganizations = fits(organizationsCheck, SAMPLE_COUNTS.organizations);
-  const includeCommunityItems = includeOrganizations && fits(communityItemsCheck, SAMPLE_COUNTS.community_items);
+  const includeAssignments = includeLeafItems;
+  const includeWorkblocks = includeLeafItems;
+  const includeBuildItems = includeLeafItems;
+  const includeFreelanceClients = true; // containers — never blocked
+  const includeFreelanceTasks = includeLeafItems;
+  const includeOwnProjects = includeLeafItems;
+  const includeOrganizations = true; // containers — never blocked
+  const includeCommunityItems = includeLeafItems;
 
   const skipped: string[] = [];
-  if (!includeAssignments) skipped.push('assignments');
-  if (!includeWorkblocks) skipped.push('workblocks');
-  if (!includeBuildItems) skipped.push('build_items');
-  if (!includeFreelanceClients) skipped.push('freelance_clients');
-  else if (!includeFreelanceTasks) skipped.push('freelance_tasks');
-  if (!includeOwnProjects) skipped.push('own_projects');
-  if (!includeOrganizations) skipped.push('organizations');
-  else if (!includeCommunityItems) skipped.push('community_items');
+  if (!includeLeafItems) skipped.push('leaf_items');
 
   // ── SUBJECTS (no plan limit — always inserted) ──────────────────────────
   // Phase 5b: when Uni is on the dynamic engine, sample subjects go to

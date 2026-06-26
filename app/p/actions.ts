@@ -7,6 +7,7 @@ import { db, schema } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { PILLAR_TEMPLATES } from '@/lib/pillar-templates';
+import { checkLimit } from '@/lib/limits';
 
 type PillarRow = typeof schema.pillars.$inferSelect;
 
@@ -121,6 +122,11 @@ export async function createPillarItem(input: z.input<typeof createItemSchema>):
   if (!pillar) return { ok: false, error: 'pilar no encontrado' };
   if (!isValidStatus(pillar, parsed.status, parsed.is_container)) {
     return { ok: false, error: `estado inválido para este pilar: "${parsed.status}"` };
+  }
+
+  if (!parsed.is_container) {
+    const limitCheck = await checkLimit(user.id, 'leaf_items');
+    if (!limitCheck.allowed) return { ok: false, error: 'límite de plan alcanzado' };
   }
 
   if (parsed.parent_item_id) {

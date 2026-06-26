@@ -37,9 +37,9 @@ function toDate(v: string | null | undefined): Date | null {
 
 export async function quickCaptureIdea(title: string): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'build_items');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'build_items', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
 
   let itemId: string | undefined;
@@ -70,9 +70,9 @@ export async function quickCaptureIdea(title: string): Promise<LimitReachedError
 
 export async function createBuildItem(input: z.infer<typeof buildSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'build_items');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'build_items', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
   const parsed = buildSchema.parse(input);
 

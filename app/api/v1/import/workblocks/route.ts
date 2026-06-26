@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const imported: string[] = [];
     const errors: Array<{ index: number; error: string }> = [];
 
-    const limitCheck = await checkLimit(userId, 'workblocks');
+    const limitCheck = await checkLimit(userId, 'leaf_items');
     const remaining = limitCheck.limit === null ? Infinity : Math.max(0, limitCheck.limit - limitCheck.current);
 
     // Phase 6c: when Work is on the dynamic engine, import goes to

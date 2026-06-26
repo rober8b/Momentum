@@ -26,9 +26,9 @@ const workblockSchema = z.object({
 
 export async function createWorkblock(input: z.infer<typeof workblockSchema>): Promise<LimitReachedError | void> {
   const user = await requireUser();
-  const limitCheck = await checkLimit(user.id, 'workblocks');
+  const limitCheck = await checkLimit(user.id, 'leaf_items');
   if (!limitCheck.allowed) {
-    return { error: 'limit_reached', resource: 'workblocks', limit: limitCheck.limit! };
+    return { error: 'limit_reached', resource: 'leaf_items', limit: limitCheck.limit! };
   }
   const parsed = workblockSchema.parse(input);
   const [row] = await db.insert(schema.workblocks).values({ ...parsed, user_id: user.id }).returning({ id: schema.workblocks.id });
