@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
+import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-heading',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
+});
 import AppShell from '@/components/AppShell';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
@@ -14,7 +22,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   return (
-    <html lang="es" className="dark">
+    <html lang="es" className={`dark ${spaceGrotesk.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ToastProvider>
           <AppShell
